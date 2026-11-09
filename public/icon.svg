@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="128" fill="#070E1C" />
+  <circle cx="256" cy="256" r="210" fill="#0C1B33" stroke="#00B4D8" stroke-width="8" />
+  
+  <!-- Light Beam from Lighthouse -->
+  <path d="M256 140 L440 40 L460 120 Z" fill="url(#beamGrad)" opacity="0.4" />
+  <path d="M256 140 L72 40 L52 120 Z" fill="url(#beamGrad)" opacity="0.4" />
+
+  <!-- Lighthouse Body -->
+  <path d="M256 90 L290 140 H222 L256 90 Z" fill="#FFC400" stroke="#FFC400" stroke-width="4" />
+  <path d="M232 140 L212 370 H300 L280 140 Z" fill="#00B4D8" stroke="#38BDF8" stroke-width="6" />
+  
+  <!-- Red & White Stripes -->
+  <path d="M225 210 H287 L283 260 H229 Z" fill="#EF4444" />
+  <path d="M229 260 H283 L279 310 H233 Z" fill="#FFFFFF" />
+
+  <!-- Base Rock -->
+  <rect x="180" y="370" width="152" height="34" rx="12" fill="#1E293B" stroke="#475569" stroke-width="4" />
+
+  <!-- Fleur-de-lis Emblem in Center -->
+  <path d="M256 185 C250 200, 244 216, 244 228 C244 240, 268 240, 268 228 C268 216, 262 200, 256 185 Z" fill="#FFC400" stroke="#B45309" stroke-width="2" />
+  <path d="M244 226 C234 214, 220 220, 222 232 C226 242, 242 240, 246 234 Z" fill="#FFC400" stroke="#B45309" stroke-width="2" />
+  <path d="M268 226 C278 214, 292 220, 290 232 C286 242, 270 240, 266 234 Z" fill="#FFC400" stroke="#B45309" stroke-width="2" />
+  <rect x="238" y="240" width="36" height="8" rx="4" fill="#B45309" />
+
+  <defs>
+    <linearGradient id="beamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFC400" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#00B4D8" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>
