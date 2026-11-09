@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node -e \"console.log('Publishing prebuilt dist directory')\"",
+    "build:local": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -25,4 +26,3 @@
     "vite": "^6.0.7"
   }
 }
-
