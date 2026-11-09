@@ -12,14 +12,13 @@ import {
   Plus,
   Trash2,
   CheckCircle2,
-  XCircle,
-  Sparkles
+  XCircle
 } from 'lucide-react';
 import ScoutCharacter from '../characters/ScoutCharacter';
 import { sound } from '../../utils/audio';
 import { sheetService } from '../../services/sheetService';
 import { getMasterQuestionCatalog } from '../../data/defaultQuestions';
-import { CATEGORIES } from '../..//data/categories';
+import { CATEGORIES } from '../../data/categories';
 import confetti from 'canvas-confetti';
 
 /**
@@ -200,11 +199,21 @@ export default function OcaScoutGame({
   // Game Mode: 'questions' (Banco de preguntas rotativo) | 'coordinator' (Actividades de campamento/evento dadas por el coordinador)
   const [ocaMode, setOcaMode] = useState('questions');
 
-  // Dynamic rotating question pool
+  // Dynamic rotating question pool (safe initialization)
   const [questionPool, setQuestionPool] = useState(() => {
-    const active = sheetService.getActivePlayableQuestions(activeContext.rama || 'todas');
-    return active.length > 0 ? active : getMasterQuestionCatalog();
+    try {
+      if (typeof sheetService.getActivePlayableQuestions === 'function') {
+        const active = sheetService.getActivePlayableQuestions(activeContext.rama || 'todas');
+        if (Array.isArray(active) && active.length > 0) return active;
+      }
+      const cached = sheetService.getCachedApproved();
+      if (Array.isArray(cached) && cached.length > 0) return cached;
+    } catch {
+      // fallback to master catalog
+    }
+    return getMasterQuestionCatalog();
   });
+
   const [usedQuestionIds, setUsedQuestionIds] = useState([]);
   const [rotationNotice, setRotationNotice] = useState('');
 
@@ -223,7 +232,7 @@ export default function OcaScoutGame({
   const [showCoordinatorConfig, setShowCoordinatorConfig] = useState(false);
 
   // Pending turn verification state:
-  // { prevPos, targetPos, roll, tile, questionObj, activityText, answeredChoice, isCorrect }
+  // { prevPos, targetPos, roll, tile, questionObj, activityText, answeredChoice, isResolved }
   const [pendingTurn, setPendingTurn] = useState(null);
 
   const [logMsg, setLogMsg] = useState(
@@ -234,11 +243,19 @@ export default function OcaScoutGame({
   const [editingTeams, setEditingTeams] = useState(false);
 
   useEffect(() => {
-    const active = sheetService.getActivePlayableQuestions(activeContext.rama || 'todas');
-    if (active && active.length > 0) {
-      setQuestionPool(active);
+    try {
+      if (Array.isArray(approvedQuestions) && approvedQuestions.length > 0) {
+        setQuestionPool(approvedQuestions);
+      } else {
+        const cached = sheetService.getCachedApproved();
+        if (Array.isArray(cached) && cached.length > 0) {
+          setQuestionPool(cached);
+        }
+      }
+    } catch {
+      // keep current pool
     }
-  }, [approvedQuestions, activeContext.rama]);
+  }, [approvedQuestions]);
 
   const currentTeam = teams[turn];
   const inspectedTile = OCA_63_TILES.find(t => t.id === selectedTileId) || OCA_63_TILES[0];
@@ -279,40 +296,64 @@ export default function OcaScoutGame({
     setTimeout(() => setRotationNotice(''), 3500);
   };
 
-  // Pick next question from rotating pool and shuffle its 4 options
+  // Pick next question from rotating pool and normalize both Master & Sheet formats
   const drawNextQuestion = () => {
-    const source = questionPool.length > 0 ? questionPool : getMasterQuestionCatalog();
-    let available = source.filter(q => !usedQuestionIds.includes(q.id));
+    const source =
+      Array.isArray(questionPool) && questionPool.length > 0
+        ? questionPool
+        : getMasterQuestionCatalog();
+
+    let available = source.filter(q => q && !usedQuestionIds.includes(q.id));
     if (available.length === 0) {
       available = source;
       setUsedQuestionIds([]);
     }
-    const chosen = available[Math.floor(Math.random() * available.length)];
-    setUsedQuestionIds(prev => [...prev, chosen.id]);
 
-    const rawOpts = [
-      { text: chosen.opcionA, isCorrect: chosen.correcta === 'A' },
-      { text: chosen.opcionB, isCorrect: chosen.correcta === 'B' },
-      { text: chosen.opcionC, isCorrect: chosen.correcta === 'C' },
-      { text: chosen.opcionD, isCorrect: chosen.correcta === 'D' }
-    ].filter(o => o.text);
-
-    // Shuffle options so the correct answer is in a random position
-    for (let i = rawOpts.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [rawOpts[i], rawOpts[j]] = [rawOpts[j], rawOpts[i]];
+    const chosen =
+      available[Math.floor(Math.random() * available.length)] || getMasterQuestionCatalog()[0];
+    if (chosen?.id) {
+      setUsedQuestionIds(prev => [...prev, chosen.id]);
     }
 
-    const catMeta = CATEGORIES.find(c => c.id === chosen.categoria) || {
+    const promptText = chosen.question || chosen.pregunta || '¿Cuál es el lema Scout?';
+    const catId = chosen.category || chosen.categoria || 'cabuyeria';
+
+    let rawOpts = [];
+    if (Array.isArray(chosen.options) && chosen.options.length > 0) {
+      const correctIdx =
+        typeof chosen.correctAnswer === 'number' ? chosen.correctAnswer : 0;
+      rawOpts = chosen.options.map((optText, idx) => ({
+        text: optText,
+        isCorrect: idx === correctIdx
+      }));
+    } else {
+      rawOpts = [
+        { text: chosen.opcionA, isCorrect: chosen.correcta === 'A' },
+        { text: chosen.opcionB, isCorrect: chosen.correcta === 'B' },
+        { text: chosen.opcionC, isCorrect: chosen.correcta === 'C' },
+        { text: chosen.opcionD, isCorrect: chosen.correcta === 'D' }
+      ].filter(o => o.text);
+    }
+
+    // Shuffle options so the correct answer is in a random position
+    const shuffled = [...rawOpts];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    const catMeta = CATEGORIES.find(c => c.id === catId) || {
       name: 'Conocimiento Scout',
       color: '#F59E0B'
     };
 
     return {
-      ...chosen,
+      id: chosen.id || `q-${Date.now()}`,
+      pregunta: promptText,
+      explanation: chosen.explanation || '',
       categoryName: catMeta.name,
       categoryColor: catMeta.color,
-      shuffledOptions: rawOpts
+      shuffledOptions: shuffled
     };
   };
 
@@ -410,7 +451,6 @@ export default function OcaScoutGame({
     if (!isSuccess) {
       // FAILED -> MUST GO BACK! ("Si le erra a la pregunta debe volver atrás")
       sound.playWrong();
-      // If landed on Skull/Labyrinth/Hazard, go back to whichever is further back (prevPos or tile.backTo)
       const fallbackPos = tile.backTo ? Math.min(prevPos, tile.backTo) : prevPos;
 
       setTeams(prev => prev.map((t, i) => (i === turn ? { ...t, pos: fallbackPos } : t)));
@@ -473,7 +513,7 @@ export default function OcaScoutGame({
 
     setTimeout(() => {
       resolveTurnOutcome(opt.isCorrect);
-    }, 850);
+    }, 900);
   };
 
   const resetGame = () => {
@@ -760,7 +800,6 @@ export default function OcaScoutGame({
               <span className="text-[11px] font-bold text-rose-300 bg-rose-950/80 px-3 py-1 rounded-full border border-rose-500/40">
                 ⚠️ Si le erras vuelves atrás a la casilla #{pendingTurn.prevPos}
               </span>
-              {/* Quick toggle inside the turn if the coordinator wants to switch on the fly */}
               <button
                 onClick={() =>
                   setOcaMode(ocaMode === 'questions' ? 'coordinator' : 'questions')
@@ -785,7 +824,7 @@ export default function OcaScoutGame({
                   {pendingTurn.questionObj.categoryName}
                 </span>
                 <span className="text-[11px] text-slate-400 font-semibold">
-                  Banco Rotativo de Preguntas Scout
+                  Banco Rotativo de Preguntas Scout ({questionPool.length} activas)
                 </span>
               </div>
 

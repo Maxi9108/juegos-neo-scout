@@ -428,6 +428,20 @@ class SheetService {
     return getMasterQuestionCatalog();
   }
 
+  getActivePlayableQuestions(rama = 'todas') {
+    const all = this.getCachedApproved();
+    const selectedIds = this.getSelectedQuestionIds();
+    let pool = Array.isArray(selectedIds) && selectedIds.length > 0
+      ? all.filter(q => selectedIds.includes(q.id))
+      : all;
+    if (pool.length === 0) pool = all;
+    if (rama && rama !== 'todas') {
+      const byRama = pool.filter(q => !q.rama || q.rama === 'todas' || q.rama === rama);
+      if (byRama.length >= 6) return byRama;
+    }
+    return pool;
+  }
+
   getCachedPending() {
     try {
       const raw = localStorage.getItem(CACHED_PENDING_KEY);
