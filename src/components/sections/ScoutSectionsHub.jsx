@@ -75,7 +75,13 @@ export default function ScoutSectionsHub({
 
   const handleCopyShareLink = (sec, gameId = 'preguntados') => {
     const url = buildShareUrl(sec, gameId);
-    navigator.clipboard.writeText(url);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
     setCopiedId(`${sec.id}-${gameId}`);
     sound.playCorrect();
     showNotice(`🔗 ¡Link grupal copiado! Compártelo por WhatsApp o en tu sección (${sec.nombre}).`);

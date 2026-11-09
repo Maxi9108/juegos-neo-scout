@@ -160,7 +160,7 @@ export default function QuestionCard({
 
         {/* 4 Choices Grid */}
         <div className="grid grid-cols-1 gap-2.5 sm:gap-3">
-          {question.options.map((option, idx) => {
+          {(question.options || []).map((option, idx) => {
             const letter = ['A', 'B', 'C', 'D'][idx];
             const isSelected = selectedOption === idx;
             const isCorrect = idx === question.correctAnswer;

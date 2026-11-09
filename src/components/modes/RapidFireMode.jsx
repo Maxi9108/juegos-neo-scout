@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../QuestionCard';
 import { sound } from '../../utils/audio';
+import { DEFAULT_QUESTIONS } from '../../data/defaultQuestions';
+import { sheetService } from '../../services/sheetService';
+import { useAuth } from '../../context/AuthContext';
 import { Zap, Flame, Trophy, RotateCcw, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 
 const QUESTIONS_PER_ROUND = 10;
 const TIME_PER_QUESTION = 15; // 15 seconds
 
-export default function RapidFireMode({ questions }) {
+export default function RapidFireMode({ questions, activeContext = {} }) {
+  const { currentUser } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [roundQuestions, setRoundQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -19,8 +23,9 @@ export default function RapidFireMode({ questions }) {
 
   // Start new rapid round
   const handleStartRound = () => {
+    const pool = Array.isArray(questions) && questions.length > 0 ? questions : DEFAULT_QUESTIONS;
     // Shuffle and pick 10 random questions
-    const shuffled = [...questions].sort(() => 0.5 - Math.random());
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
     const selected = shuffled.slice(0, QUESTIONS_PER_ROUND);
 
     setRoundQuestions(selected);
@@ -42,13 +47,15 @@ export default function RapidFireMode({ questions }) {
     // Calculate points: base 100 * multiplier (x1, x1.5, x2, x3)
     const multiplier = newStreak >= 4 ? 3.0 : newStreak >= 3 ? 2.0 : newStreak >= 2 ? 1.5 : 1.0;
     const pointsGained = isCorrect ? Math.round(100 * multiplier) : 0;
-    setScore(prev => prev + pointsGained);
+    const nextScore = score + pointsGained;
+    setScore(nextScore);
 
+    const opts = Array.isArray(question.options) ? question.options : [];
     const logEntry = {
       question: question.question,
       isCorrect,
-      selected: question.options[selectedOption] || 'Sin respuesta',
-      correct: question.options[question.correctAnswer],
+      selected: selectedOption !== null && selectedOption !== undefined ? (opts[selectedOption] || 'Sin respuesta') : 'Tiempo agotado',
+      correct: opts[question.correctAnswer] || '',
       explanation: question.explanation
     };
     const nextLog = [...answersLog, logEntry];
@@ -60,6 +67,16 @@ export default function RapidFireMode({ questions }) {
       setIsFinished(true);
       setIsPlaying(false);
       sound.playVictory();
+      sheetService.addScore({
+        jugador: currentUser?.name || 'Explorador Relámpago',
+        grupo: activeContext?.grupo || currentUser?.grupo || 'Grupo Scout',
+        rama: activeContext?.rama || 'todas',
+        distrito: activeContext?.distrito || currentUser?.distrito || 'General',
+        juego: 'Preguntados Scout',
+        puntos: nextScore,
+        insignias: Math.floor(nextScore / 350),
+        codigoSala: activeContext?.codigoSala || ''
+      });
       confetti({
         particleCount: 80,
         spread: 60,

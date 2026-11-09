@@ -41,7 +41,7 @@ export default function ScoreboardPanel({ activeContext = {} }) {
     sound.playBadgeEarned();
   };
 
-  const filteredScores = scores.filter(s => {
+  const filteredScores = (scores || []).filter(s => {
     const matchRama = filterRama === 'todas' || s.rama === filterRama || s.rama === 'todas';
     const matchGrupo = !filterGrupo.trim() || (s.grupo || '').toLowerCase().includes(filterGrupo.toLowerCase().trim());
     const matchJuego = filterJuego === 'todos' || s.juego === filterJuego;
@@ -181,6 +181,9 @@ export default function ScoreboardPanel({ activeContext = {} }) {
             <option value="Monopoly Scout">🎩 Monopoly Scout</option>
             <option value="Juego de la Oca Scout">🪿 Oca Scout</option>
             <option value="Pictionary Scout">🎨 Pictionary Scout</option>
+            <option value="Tutti Frutti Scout">🐒 Tutti Frutti Scout</option>
+            <option value="Juego de la Vida Scout">🦁 Juego de la Vida Scout</option>
+            <option value="Lotería Familiar">🎱 Lotería Familiar</option>
           </select>
         </div>
       </div>

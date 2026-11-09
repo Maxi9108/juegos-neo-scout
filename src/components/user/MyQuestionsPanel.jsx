@@ -186,7 +186,7 @@ export default function MyQuestionsPanel({ approvedQuestions, onOpenAuth }) {
                   <h3 className="text-sm sm:text-base font-bold text-slate-100">{q.question}</h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    {q.options.map((opt, idx) => (
+                    {(q.options || []).map((opt, idx) => (
                       <div
                         key={idx}
                         className={`p-2 rounded-xl border flex items-center gap-2 ${
@@ -232,7 +232,7 @@ export default function MyQuestionsPanel({ approvedQuestions, onOpenAuth }) {
                   </div>
                   <h4 className="font-bold text-slate-200 line-clamp-2">{q.question}</h4>
                   <div className="text-[11px] text-emerald-400 font-semibold">
-                    ✓ {q.options[q.correctAnswer]}
+                    ✓ {(q.options || [])[q.correctAnswer] || ''}
                   </div>
                 </div>
               );

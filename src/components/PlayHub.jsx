@@ -71,7 +71,13 @@ export default function PlayHub({
       rama: ramaInput || 'todas'
     });
     const shareUrl = `${baseUrl}?${params.toString()}`;
-    navigator.clipboard.writeText(shareUrl);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
     setCopiedLink(true);
     sound.playBadgeEarned();
     if (onUpdateContext) onUpdateContext(currentRoomContext);

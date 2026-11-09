@@ -51,7 +51,8 @@ export default function ModerationPanel({ onQuestionApproved }) {
     setEditingQuestion(q);
     setFormCategory(q.category || 'cabuyeria');
     setFormQuestion(q.question || '');
-    setFormOptions([...q.options]);
+    const safeOpts = Array.isArray(q.options) && q.options.length === 4 ? [...q.options] : ['Opción A', 'Opción B', 'Opción C', 'Opción D'];
+    setFormOptions(safeOpts);
     setFormCorrect(q.correctAnswer ?? 0);
     setFormDifficulty(q.difficulty || 'intermedio');
     setFormExplanation(q.explanation || '');
@@ -157,8 +158,8 @@ export default function ModerationPanel({ onQuestionApproved }) {
   const filteredQuestions = activeList.filter(q => {
     const matchesCat = categoryFilter === 'all' || q.category === categoryFilter;
     const matchesSearch = searchTerm === '' ||
-      q.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.options.some(opt => opt.toLowerCase().includes(searchTerm.toLowerCase()));
+      (q.question || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.options || []).some(opt => String(opt || '').toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesCat && matchesSearch;
   });
 
@@ -356,7 +357,7 @@ export default function ModerationPanel({ onQuestionApproved }) {
 
                 {/* 4 Choices Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  {q.options.map((opt, idx) => {
+                  {(q.options || []).map((opt, idx) => {
                     const isCorrect = idx === q.correctAnswer;
                     const letter = ['A', 'B', 'C', 'D'][idx];
 
