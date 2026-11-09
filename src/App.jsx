@@ -210,7 +210,7 @@ function MainApp() {
         )}
 
         {activeTab === 'users' && (
-          <UserManagementPanel />
+          <UserManagementPanel onJoinSectionGame={handleJoinSectionGame} />
         )}
 
         {activeTab === 'drive' && (

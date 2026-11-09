@@ -32,10 +32,10 @@ function initSheets() {
   let sheetUsers = ss.getSheetByName("Usuarios");
   if (!sheetUsers) {
     sheetUsers = ss.insertSheet("Usuarios");
-    sheetUsers.appendRow(["Email", "Password", "Rol", "Estado", "Nombre", "FechaCreacion"]);
-    sheetUsers.getRange("A1:F1").setFontWeight("bold").setBackground("#2D6A4F").setFontColor("#FFFFFF");
+    sheetUsers.appendRow(["Email", "Password", "Rol", "Estado", "Nombre", "FechaCreacion", "Grupo", "Rama", "Distrito", "Zona"]);
+    sheetUsers.getRange("A1:J1").setFontWeight("bold").setBackground("#2D6A4F").setFontColor("#FFFFFF");
     // Insertar Superadministrador por defecto
-    sheetUsers.appendRow([SUPERADMIN_EMAIL, SUPERADMIN_PASS, "superadmin", "activo", "Maxi (Superadmin)", new Date()]);
+    sheetUsers.appendRow([SUPERADMIN_EMAIL, SUPERADMIN_PASS, "superadmin", "activo", "Maxi (Superadmin)", new Date(), "Grupo Scout General", "todas", "Distrito Central", "Zona 1"]);
   }
 
   // 2. Hoja Preguntas Aprobadas (Banco Público General)
@@ -75,7 +75,11 @@ function doGet(e) {
         rol: u.Rol,
         estado: u.Estado,
         nombre: u.Nombre,
-        fechaCreacion: u.FechaCreacion
+        fechaCreacion: u.FechaCreacion,
+        grupo: u.Grupo || "Grupo Scout General",
+        rama: u.Rama || "todas",
+        distrito: u.Distrito || "Distrito Central",
+        zona: u.Zona || "Zona 1"
       })); // No enviamos contraseñas en getAll público
 
       const approvedQuestions = sheetToObjects(sheetApproved).map(formatQuestionFromRow);
@@ -135,7 +139,7 @@ function doPost(e) {
 
     // --- 2. REGISTRO DE USUARIO ---
     if (action === "register") {
-      const { email, password, nombre } = body;
+      const { email, password, nombre, grupo, rama, distrito, zona } = body;
       const cleanEmail = String(email).toLowerCase().trim();
       const users = sheetToObjects(sheetUsers);
 
@@ -144,7 +148,18 @@ function doPost(e) {
       }
 
       const rol = cleanEmail === SUPERADMIN_EMAIL.toLowerCase() ? "superadmin" : "usuario";
-      sheetUsers.appendRow([cleanEmail, password, rol, "activo", nombre || cleanEmail.split('@')[0], new Date()]);
+      sheetUsers.appendRow([
+        cleanEmail,
+        password,
+        rol,
+        "activo",
+        nombre || cleanEmail.split('@')[0],
+        new Date(),
+        grupo || "Grupo Scout General",
+        rama || "todas",
+        distrito || "Distrito Central",
+        zona || "Zona 1"
+      ]);
 
       return createJsonResponse({
         status: "success",
@@ -152,7 +167,11 @@ function doPost(e) {
           email: cleanEmail,
           nombre: nombre || cleanEmail.split('@')[0],
           rol: rol,
-          estado: "activo"
+          estado: "activo",
+          grupo: grupo || "Grupo Scout General",
+          rama: rama || "todas",
+          distrito: distrito || "Distrito Central",
+          zona: zona || "Zona 1"
         }
       });
     }

@@ -22,7 +22,7 @@ export default function Navbar({ activeTab, setActiveTab, isMuted, setIsMuted, o
     { id: 'scores', label: 'Puntajes', icon: Trophy },
     { id: 'my_questions', label: 'Crear Pregunta', icon: Database },
     ...(isAdmin ? [{ id: 'moderation', label: 'Moderación', icon: ShieldCheck }] : []),
-    ...(isSuperAdmin ? [{ id: 'users', label: 'Usuarios', icon: Users }] : []),
+    ...(isAdmin ? [{ id: 'users', label: 'Personas & Grupos', icon: Users }] : []),
     { id: 'drive', label: 'Drive 24/7', icon: Cloud }
   ];
 
@@ -45,8 +45,18 @@ export default function Navbar({ activeTab, setActiveTab, isMuted, setIsMuted, o
         </div>
 
         {currentUser ? (
-          <div className="flex items-center gap-2 text-slate-300">
-            <span className="font-bold text-amber-300">{currentUser.nombre || currentUser.email}</span>
+          <div className="flex items-center gap-2 text-slate-300 shrink-0">
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab('users')}
+                className="px-2 py-0.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 text-amber-300 font-black text-[10px] flex items-center gap-1 transition"
+                title="Ver todas las personas, grupos y secciones"
+              >
+                <Users className="w-3 h-3" />
+                <span>Directorio Admin</span>
+              </button>
+            )}
+            <span className="font-bold text-amber-300 truncate max-w-[110px] sm:max-w-none">{currentUser.nombre || currentUser.email}</span>
             {currentUser.grupo && (
               <span className="text-[10px] text-cyan-300 hidden sm:inline">• {currentUser.grupo}</span>
             )}
@@ -147,8 +157,8 @@ export default function Navbar({ activeTab, setActiveTab, isMuted, setIsMuted, o
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#060c18]/95 backdrop-blur-lg border-t border-cyan-950/80 py-1.5 px-1.5 z-40 flex items-center justify-around shadow-2xl overflow-x-auto">
-        {navItems.slice(0, 6).map(item => {
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#060c18]/95 backdrop-blur-lg border-t border-cyan-950/80 py-1.5 px-1.5 z-40 flex items-center justify-start sm:justify-around gap-1 shadow-2xl overflow-x-auto">
+        {navItems.map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (

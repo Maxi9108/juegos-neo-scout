@@ -78,26 +78,101 @@ function getInitialUsers() {
     {
       email: 'dirigente@scout.org',
       password: 'scout',
-      nombre: 'Dirigente Ejemplo',
+      nombre: 'Akela • Dirigente Manada',
+      rol: 'admin',
+      grupo: 'Grupo Scout San Jorge',
+      rama: 'manada',
+      distrito: 'Distrito 2',
+      zona: 'Zona Sur',
+      estado: 'activo'
+    },
+    {
+      email: 'jefe.tropa@brownsea.org',
+      password: 'scout',
+      nombre: 'Baloo • Jefe de Unidad',
       rol: 'admin',
       grupo: 'Grupo Scout N° 1 Brownsea',
       rama: 'unidad',
       distrito: 'Distrito 1',
-      zona: 'Zona Norte',
+      zona: 'Zona Central',
       estado: 'activo'
     },
     {
       email: 'scout@patrulla.org',
       password: 'scout',
-      nombre: 'Scout Ejemplo',
+      nombre: 'Lince Vigilante (Guía Águilas)',
       rol: 'usuario',
       grupo: 'Grupo Scout N° 1 Brownsea',
       rama: 'unidad',
       distrito: 'Distrito 1',
-      zona: 'Zona Norte',
+      zona: 'Zona Central',
+      estado: 'activo'
+    },
+    {
+      email: 'caminante@mafeking.org',
+      password: 'scout',
+      nombre: 'Puma del Sur (Comunidad)',
+      rol: 'usuario',
+      grupo: 'Grupo Scout Mafeking',
+      rama: 'caminantes',
+      distrito: 'Distrito 1',
+      zona: 'Zona Central',
+      estado: 'activo'
+    },
+    {
+      email: 'rover@gilwell.org',
+      password: 'scout',
+      nombre: 'Cóndor Andino (Clan Rover)',
+      rol: 'usuario',
+      grupo: 'Grupo Scout N° 1 Brownsea',
+      rama: 'rovers',
+      distrito: 'Distrito 1',
+      zona: 'Zona Central',
       estado: 'activo'
     }
   ];
+}
+
+function mergeUsersWithDefaults(remoteUsers = [], localUsers = []) {
+  const map = new Map();
+  const defaults = getInitialUsers();
+
+  defaults.forEach(u => {
+    map.set(u.email.toLowerCase(), { ...u });
+  });
+
+  (localUsers || []).forEach(u => {
+    if (!u || !u.email) return;
+    const key = u.email.toLowerCase();
+    const prev = map.get(key) || {};
+    map.set(key, {
+      ...prev,
+      ...u,
+      grupo: u.grupo && u.grupo !== 'Grupo Scout General' ? u.grupo : (prev.grupo || u.grupo || 'Grupo Scout General'),
+      rama: u.rama && u.rama !== 'todas' ? u.rama : (prev.rama || u.rama || 'todas'),
+      distrito: u.distrito || prev.distrito || 'Distrito Central',
+      zona: u.zona || prev.zona || 'Zona 1'
+    });
+  });
+
+  (remoteUsers || []).forEach(u => {
+    if (!u || !u.email) return;
+    const key = u.email.toLowerCase();
+    const prev = map.get(key) || {};
+    map.set(key, {
+      ...prev,
+      email: u.email,
+      nombre: u.nombre || prev.nombre || u.email.split('@')[0],
+      rol: key === SUPERADMIN_CREDENTIALS.email.toLowerCase() ? 'superadmin' : (u.rol || prev.rol || 'usuario'),
+      grupo: u.grupo && u.grupo !== 'Grupo Scout General' ? u.grupo : (prev.grupo || u.grupo || 'Grupo Scout General'),
+      rama: u.rama && u.rama !== 'todas' ? u.rama : (prev.rama || u.rama || 'todas'),
+      distrito: u.distrito || prev.distrito || 'Distrito Central',
+      zona: u.zona || prev.zona || 'Zona 1',
+      estado: u.estado || prev.estado || 'activo'
+    });
+  });
+
+  return Array.from(map.values());
 }
 
 function getInitialSections() {
@@ -237,9 +312,14 @@ class SheetService {
     const mergedInitial = mergeWithMasterQuestions(initialApproved);
     localStorage.setItem(CACHED_APPROVED_KEY, JSON.stringify(mergedInitial));
 
-    if (!localStorage.getItem(CACHED_USERS_KEY)) {
-      localStorage.setItem(CACHED_USERS_KEY, JSON.stringify(getInitialUsers()));
+    let existingUsers = [];
+    try {
+      const rawU = localStorage.getItem(CACHED_USERS_KEY);
+      if (rawU) existingUsers = JSON.parse(rawU);
+    } catch {
+      existingUsers = [];
     }
+    localStorage.setItem(CACHED_USERS_KEY, JSON.stringify(mergeUsersWithDefaults([], existingUsers)));
     if (!localStorage.getItem(CACHED_PENDING_KEY)) {
       localStorage.setItem(CACHED_PENDING_KEY, JSON.stringify([]));
     }
@@ -377,17 +457,9 @@ class SheetService {
         }
 
         if (users && users.length > 0) {
-          const sanitizedUsers = users.map(u => ({
-            email: u.email,
-            nombre: u.nombre || u.email.split('@')[0],
-            rol: u.email.toLowerCase() === SUPERADMIN_CREDENTIALS.email.toLowerCase() ? 'superadmin' : (u.rol || 'usuario'),
-            grupo: u.grupo || 'Grupo Scout General',
-            rama: u.rama || 'todas',
-            distrito: u.distrito || '',
-            zona: u.zona || '',
-            estado: u.estado || 'activo'
-          }));
-          localStorage.setItem(CACHED_USERS_KEY, JSON.stringify(sanitizedUsers));
+          const localUsers = this.getCachedUsers();
+          const mergedUsers = mergeUsersWithDefaults(users, localUsers);
+          localStorage.setItem(CACHED_USERS_KEY, JSON.stringify(mergedUsers));
         }
 
         return {
@@ -898,6 +970,25 @@ class SheetService {
         console.warn('Error actualizando estado en Google Sheet:', e);
       }
     }
+  }
+
+  async updateUserProfile(targetEmail, updates = {}) {
+    const users = this.getCachedUsers();
+    const updated = users.map(u => {
+      if (u.email.toLowerCase() === targetEmail.toLowerCase()) {
+        return {
+          ...u,
+          nombre: updates.nombre !== undefined ? updates.nombre : u.nombre,
+          grupo: updates.grupo !== undefined ? updates.grupo : u.grupo,
+          rama: updates.rama !== undefined ? updates.rama : u.rama,
+          distrito: updates.distrito !== undefined ? updates.distrito : u.distrito,
+          zona: updates.zona !== undefined ? updates.zona : u.zona
+        };
+      }
+      return u;
+    });
+    localStorage.setItem(CACHED_USERS_KEY, JSON.stringify(updated));
+    return updated;
   }
 
   async deleteUser(targetEmail) {
