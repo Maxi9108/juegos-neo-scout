@@ -106,7 +106,7 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070e1c] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(0,180,216,0.22),rgba(255,196,0,0.06),rgba(7,14,28,0))] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#070e1c] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(0,180,216,0.22),rgba(255,196,0,0.06),rgba(7,14,28,0))] text-slate-100 flex flex-col font-sans overflow-x-hidden">
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -115,7 +115,7 @@ function MainApp() {
         onOpenAuth={() => setIsAuthOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-5">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-5 pb-20 md:pb-6">
         {activeTab === 'portal' && (
           <GamePortal
             onSelectGame={handleSelectGame}

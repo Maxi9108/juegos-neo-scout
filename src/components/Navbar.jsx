@@ -29,17 +29,17 @@ export default function Navbar({ activeTab, setActiveTab, isMuted, setIsMuted, o
   return (
     <header className="bg-[#0b162c]/95 backdrop-blur-md border-b border-cyan-900/30 sticky top-0 z-40">
       {/* Top micro-bar */}
-      <div className="bg-[#060c18] px-4 py-1 text-[11px] flex items-center justify-between border-b border-slate-800/60">
-        <div className="flex items-center gap-2">
+      <div className="bg-[#060c18] px-2.5 sm:px-4 py-1 text-[10px] sm:text-[11px] flex items-center justify-between gap-2 border-b border-slate-800/60">
+        <div className="flex items-center gap-1.5 min-w-0">
           {isOnline ? (
-            <span className="flex items-center gap-1.5 text-cyan-400 font-bold">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#00b4d8]" />
-              <span>Conexión NeoFaro 24/7 (Drive &amp; Rotación Semanal)</span>
+            <span className="flex items-center gap-1.5 text-cyan-400 font-bold truncate">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#00b4d8] shrink-0" />
+              <span className="truncate">NeoFaro 24/7 • Sincronizado</span>
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-amber-400 font-bold">
-              <WifiOff className="w-3 h-3 text-amber-400" />
-              <span>Modo Campamento Offline</span>
+            <span className="flex items-center gap-1.5 text-amber-400 font-bold truncate">
+              <WifiOff className="w-3 h-3 text-amber-400 shrink-0" />
+              <span className="truncate">Modo Campamento Offline</span>
             </span>
           )}
         </div>

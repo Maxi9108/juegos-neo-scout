@@ -7,9 +7,8 @@ import {
   RotateCcw,
   HelpCircle,
   Users,
-  ZoomIn,
-  ZoomOut,
-  Eye
+  Smartphone,
+  LayoutGrid
 } from 'lucide-react';
 import ScoutCharacter from '../characters/ScoutCharacter';
 import { sound } from '../../utils/audio';
@@ -20,65 +19,64 @@ import confetti from 'canvas-confetti';
  * OFFICIAL 40-TILE MONOPOLY SCOUT BOARD (0..39)
  * Arranged clockwise on an 11x11 Perimeter Tabletop Grid:
  * - 0 (SALIDA): row 11, col 11 (Bottom-Right)
- * - 1..9 (Bottom Row): row 11, col 10..2
+ * - 1..9 (Bottom Row / Calle Sur): row 11, col 10..2
  * - 10 (Guardia / Visita): row 11, col 1 (Bottom-Left)
- * - 11..19 (Left Column): row 10..2, col 1
+ * - 11..19 (Left Column / Calle Oeste): row 10..2, col 1
  * - 20 (Acampada Libre): row 1, col 1 (Top-Left)
- * - 21..29 (Top Row): row 1, col 2..10
+ * - 21..29 (Top Row / Calle Norte): row 1, col 2..10
  * - 30 (Ir a Guardia): row 1, col 11 (Top-Right)
- * - 31..39 (Right Column): row 2..10, col 11
+ * - 31..39 (Right Column / Calle Este): row 2..10, col 11
  */
 const BOARD_TILES = [
   // BOTTOM ROW (Right to Left: 0 -> 10)
-  { id: 0, name: 'SALIDA • Fogón Central', type: 'corner_start', emoji: '🔥', color: '#F59E0B', desc: 'Cobra +200 ⚜️ al pasar' },
-  { id: 1, name: 'Rincón de Seisena', type: 'property', price: 60, rent: 20, group: 'Marrón • Manada', color: '#78350F', emoji: '🐺' },
-  { id: 2, name: 'Cofre de Intendencia', type: 'chest', emoji: '🎒', color: '#0284C7', desc: 'Tarjeta de Intendencia' },
-  { id: 3, name: 'Roca del Consejo', type: 'property', price: 60, rent: 25, group: 'Marrón • Manada', color: '#78350F', emoji: '🪨' },
-  { id: 4, name: 'Cuota de Campamento', type: 'tax', amount: 150, emoji: '🪵', color: '#DC2626', desc: 'Fondo común (-150 ⚜️)' },
-  { id: 5, name: 'Tren de Mafeking', type: 'station', price: 200, rent: 50, group: 'Transporte Scout', color: '#334155', emoji: '🚂' },
-  { id: 6, name: 'Sendero del Bosque', type: 'property', price: 100, rent: 30, group: 'Celeste • Pistas', color: '#38BDF8', emoji: '🐾' },
-  { id: 7, name: 'Suerte del Fogón', type: 'chance', emoji: '🔥', color: '#EA580C', desc: 'Tarjeta del Fogón' },
-  { id: 8, name: 'Arroyo Cristalino', type: 'property', price: 100, rent: 30, group: 'Celeste • Pistas', color: '#38BDF8', emoji: '💧' },
-  { id: 9, name: 'Valle de los Lobatos', type: 'property', price: 120, rent: 40, group: 'Celeste • Pistas', color: '#38BDF8', emoji: '🌲' },
-  { id: 10, name: 'Guardia de Intendencia', type: 'corner_jail', emoji: '🧹', color: '#64748B', desc: 'De visita / Limpieza de ollas' },
+  { id: 0, name: 'SALIDA • Fogón Central', type: 'corner_start', emoji: '🔥', color: '#F59E0B', desc: 'Cobra +200 ⚜️ al pasar', side: 'sur' },
+  { id: 1, name: 'Rincón de Seisena', type: 'property', price: 60, rent: 20, group: 'Marrón • Manada', color: '#78350F', emoji: '🐺', side: 'sur' },
+  { id: 2, name: 'Cofre de Intendencia', type: 'chest', emoji: '🎒', color: '#0284C7', desc: 'Tarjeta de Intendencia', side: 'sur' },
+  { id: 3, name: 'Roca del Consejo', type: 'property', price: 60, rent: 25, group: 'Marrón • Manada', color: '#78350F', emoji: '🪨', side: 'sur' },
+  { id: 4, name: 'Cuota de Campamento', type: 'tax', amount: 150, emoji: '🪵', color: '#DC2626', desc: 'Fondo común (-150 ⚜️)', side: 'sur' },
+  { id: 5, name: 'Tren de Mafeking', type: 'station', price: 200, rent: 50, group: 'Transporte Scout', color: '#334155', emoji: '🚂', side: 'sur' },
+  { id: 6, name: 'Sendero del Bosque', type: 'property', price: 100, rent: 30, group: 'Celeste • Pistas', color: '#38BDF8', emoji: '🐾', side: 'sur' },
+  { id: 7, name: 'Suerte del Fogón', type: 'chance', emoji: '🔥', color: '#EA580C', desc: 'Tarjeta del Fogón', side: 'sur' },
+  { id: 8, name: 'Arroyo Cristalino', type: 'property', price: 100, rent: 30, group: 'Celeste • Pistas', color: '#38BDF8', emoji: '💧', side: 'sur' },
+  { id: 9, name: 'Valle de los Lobatos', type: 'property', price: 120, rent: 40, group: 'Celeste • Pistas', color: '#38BDF8', emoji: '🌲', side: 'sur' },
+  { id: 10, name: 'Guardia de Intendencia', type: 'corner_jail', emoji: '🧹', color: '#64748B', desc: 'De visita / Limpieza de ollas', side: 'oeste' },
 
   // LEFT COLUMN (Bottom to Top: 11 -> 20)
-  { id: 11, name: 'Rincón de Patrulla', type: 'property', price: 140, rent: 45, group: 'Rosa • Unidad', color: '#EC4899', emoji: '⛺' },
-  { id: 12, name: 'Intendencia de Leña', type: 'utility', price: 150, rent: 45, group: 'Servicio Scout', color: '#CA8A04', emoji: '🪓' },
-  { id: 13, name: 'Cocina Rústica', type: 'property', price: 140, rent: 45, group: 'Rosa • Unidad', color: '#EC4899', emoji: '🍲' },
-  { id: 14, name: 'Pista de Obstáculos', type: 'property', price: 160, rent: 55, group: 'Rosa • Unidad', color: '#EC4899', emoji: '🧗' },
-  { id: 15, name: 'Puerto de Canoas', type: 'station', price: 200, rent: 50, group: 'Transporte Scout', color: '#334155', emoji: '🛶' },
-  { id: 16, name: 'Taller de Cabuyería', type: 'property', price: 180, rent: 60, group: 'Naranja • Pioneros', color: '#F97316', emoji: '🪢' },
-  { id: 17, name: 'Cofre de Intendencia', type: 'chest', emoji: '🎒', color: '#0284C7', desc: 'Tarjeta de Intendencia' },
-  { id: 18, name: 'Puente de Mono', type: 'property', price: 180, rent: 60, group: 'Naranja • Pioneros', color: '#F97316', emoji: '🌉' },
-  { id: 19, name: 'Torre Mangrullo', type: 'property', price: 200, rent: 70, group: 'Naranja • Pioneros', color: '#F97316', emoji: '🗼' },
-  { id: 20, name: 'Acampada Libre', type: 'corner_free', emoji: '🌌', color: '#8B5CF6', desc: 'Descanso bajo estrellas (+80 ⚜️)' },
+  { id: 11, name: 'Rincón de Patrulla', type: 'property', price: 140, rent: 45, group: 'Rosa • Unidad', color: '#EC4899', emoji: '⛺', side: 'oeste' },
+  { id: 12, name: 'Intendencia de Leña', type: 'utility', price: 150, rent: 45, group: 'Servicio Scout', color: '#CA8A04', emoji: '🪓', side: 'oeste' },
+  { id: 13, name: 'Cocina Rústica', type: 'property', price: 140, rent: 45, group: 'Rosa • Unidad', color: '#EC4899', emoji: '🍲', side: 'oeste' },
+  { id: 14, name: 'Pista de Obstáculos', type: 'property', price: 160, rent: 55, group: 'Rosa • Unidad', color: '#EC4899', emoji: '🧗', side: 'oeste' },
+  { id: 15, name: 'Puerto de Canoas', type: 'station', price: 200, rent: 50, group: 'Transporte Scout', color: '#334155', emoji: '🛶', side: 'oeste' },
+  { id: 16, name: 'Taller de Cabuyería', type: 'property', price: 180, rent: 60, group: 'Naranja • Pioneros', color: '#F97316', emoji: '🪢', side: 'oeste' },
+  { id: 17, name: 'Cofre de Intendencia', type: 'chest', emoji: '🎒', color: '#0284C7', desc: 'Tarjeta de Intendencia', side: 'oeste' },
+  { id: 18, name: 'Puente de Mono', type: 'property', price: 180, rent: 60, group: 'Naranja • Pioneros', color: '#F97316', emoji: '🌉', side: 'oeste' },
+  { id: 19, name: 'Torre Mangrullo', type: 'property', price: 200, rent: 70, group: 'Naranja • Pioneros', color: '#F97316', emoji: '🗼', side: 'oeste' },
+  { id: 20, name: 'Acampada Libre', type: 'corner_free', emoji: '🌌', color: '#8B5CF6', desc: 'Descanso bajo estrellas (+80 ⚜️)', side: 'norte' },
 
   // TOP ROW (Left to Right: 21 -> 30)
-  { id: 21, name: 'Campo de Verano', type: 'property', price: 220, rent: 75, group: 'Rojo • Caminantes', color: '#EF4444', emoji: '🏕️' },
-  { id: 22, name: 'Suerte del Fogón', type: 'chance', emoji: '🔥', color: '#EA580C', desc: 'Tarjeta del Fogón' },
-  { id: 23, name: 'Refugio de Montaña', type: 'property', price: 220, rent: 75, group: 'Rojo • Caminantes', color: '#EF4444', emoji: '🏔️' },
-  { id: 24, name: 'Cumbre del Cóndor', type: 'property', price: 240, rent: 85, group: 'Rojo • Caminantes', color: '#EF4444', emoji: '🦅' },
-  { id: 25, name: 'Expreso de Gilwell', type: 'station', price: 200, rent: 50, group: 'Transporte Scout', color: '#334155', emoji: '🚆' },
-  { id: 26, name: 'Base de Kayak', type: 'property', price: 260, rent: 90, group: 'Amarillo • Rovers', color: '#EAB308', emoji: '🚣' },
-  { id: 27, name: 'Lago de los Castores', type: 'property', price: 260, rent: 90, group: 'Amarillo • Rovers', color: '#EAB308', emoji: '🦫' },
-  { id: 28, name: 'Planta Agua Potable', type: 'utility', price: 150, rent: 45, group: 'Servicio Scout', color: '#0284C7', emoji: '🚰' },
-  { id: 29, name: 'Travesía Andina', type: 'property', price: 280, rent: 100, group: 'Amarillo • Rovers', color: '#EAB308', emoji: '🧭' },
-  { id: 30, name: '¡A Guardia de Ollas!', type: 'corner_go_jail', emoji: '🚨', color: '#E11D48', desc: 'Ve a la casilla #10 a limpiar ollas' },
+  { id: 21, name: 'Campo de Verano', type: 'property', price: 220, rent: 75, group: 'Rojo • Caminantes', color: '#EF4444', emoji: '🏕️', side: 'norte' },
+  { id: 22, name: 'Suerte del Fogón', type: 'chance', emoji: '🔥', color: '#EA580C', desc: 'Tarjeta del Fogón', side: 'norte' },
+  { id: 23, name: 'Refugio de Montaña', type: 'property', price: 220, rent: 75, group: 'Rojo • Caminantes', color: '#EF4444', emoji: '🏔️', side: 'norte' },
+  { id: 24, name: 'Cumbre del Cóndor', type: 'property', price: 240, rent: 85, group: 'Rojo • Caminantes', color: '#EF4444', emoji: '🦅', side: 'norte' },
+  { id: 25, name: 'Expreso de Gilwell', type: 'station', price: 200, rent: 50, group: 'Transporte Scout', color: '#334155', emoji: '🚆', side: 'norte' },
+  { id: 26, name: 'Base de Kayak', type: 'property', price: 260, rent: 90, group: 'Amarillo • Rovers', color: '#EAB308', emoji: '🚣', side: 'norte' },
+  { id: 27, name: 'Lago de los Castores', type: 'property', price: 260, rent: 90, group: 'Amarillo • Rovers', color: '#EAB308', emoji: '🦫', side: 'norte' },
+  { id: 28, name: 'Planta Agua Potable', type: 'utility', price: 150, rent: 45, group: 'Servicio Scout', color: '#0284C7', emoji: '🚰', side: 'norte' },
+  { id: 29, name: 'Travesía Andina', type: 'property', price: 280, rent: 100, group: 'Amarillo • Rovers', color: '#EAB308', emoji: '🧭', side: 'norte' },
+  { id: 30, name: '¡A Guardia de Ollas!', type: 'corner_go_jail', emoji: '🚨', color: '#E11D48', desc: 'Ve a la casilla #10 a limpiar ollas', side: 'este' },
 
   // RIGHT COLUMN (Top to Bottom: 31 -> 39)
-  { id: 31, name: 'Defensa de Mafeking', type: 'property', price: 300, rent: 110, group: 'Verde • Historia', color: '#10B981', emoji: '🛡️' },
-  { id: 32, name: 'Jamboree de Olympia', type: 'property', price: 300, rent: 110, group: 'Verde • Historia', color: '#10B981', emoji: '🌍' },
-  { id: 33, name: 'Cofre de Intendencia', type: 'chest', emoji: '🎒', color: '#0284C7', desc: 'Tarjeta de Intendencia' },
-  { id: 34, name: 'Bosque Gilwell Park', type: 'property', price: 320, rent: 120, group: 'Verde • Historia', color: '#10B981', emoji: '🌳' },
-  { id: 35, name: 'Velero de Brownsea', type: 'station', price: 200, rent: 50, group: 'Transporte Scout', color: '#334155', emoji: '⛵' },
-  { id: 36, name: 'Suerte del Fogón', type: 'chance', emoji: '🔥', color: '#EA580C', desc: 'Tarjeta del Fogón' },
-  { id: 37, name: 'Castillo de Pax Hill', type: 'property', price: 350, rent: 135, group: 'Azul • Legendario', color: '#1D4ED8', emoji: '🏰' },
-  { id: 38, name: 'Equipo Alta Montaña', type: 'tax', amount: 100, emoji: '🎒', color: '#DC2626', desc: 'Renovación de equipo (-100 ⚜️)' },
-  { id: 39, name: 'Isla Brownsea 1907', type: 'property', price: 400, rent: 160, group: 'Azul • Legendario', color: '#1D4ED8', emoji: '⚜️' }
+  { id: 31, name: 'Defensa de Mafeking', type: 'property', price: 300, rent: 110, group: 'Verde • Historia', color: '#10B981', emoji: '🛡️', side: 'este' },
+  { id: 32, name: 'Jamboree de Olympia', type: 'property', price: 300, rent: 110, group: 'Verde • Historia', color: '#10B981', emoji: '🌍', side: 'este' },
+  { id: 33, name: 'Cofre de Intendencia', type: 'chest', emoji: '🎒', color: '#0284C7', desc: 'Tarjeta de Intendencia', side: 'este' },
+  { id: 34, name: 'Bosque Gilwell Park', type: 'property', price: 320, rent: 120, group: 'Verde • Historia', color: '#10B981', emoji: '🌳', side: 'este' },
+  { id: 35, name: 'Velero de Brownsea', type: 'station', price: 200, rent: 50, group: 'Transporte Scout', color: '#334155', emoji: '⛵', side: 'este' },
+  { id: 36, name: 'Suerte del Fogón', type: 'chance', emoji: '🔥', color: '#EA580C', desc: 'Tarjeta del Fogón', side: 'este' },
+  { id: 37, name: 'Castillo de Pax Hill', type: 'property', price: 350, rent: 135, group: 'Azul • Legendario', color: '#1D4ED8', emoji: '🏰', side: 'este' },
+  { id: 38, name: 'Equipo Alta Montaña', type: 'tax', amount: 100, emoji: '🎒', color: '#DC2626', desc: 'Renovación de equipo (-100 ⚜️)', side: 'este' },
+  { id: 39, name: 'Isla Brownsea 1907', type: 'property', price: 400, rent: 160, group: 'Azul • Legendario', color: '#1D4ED8', emoji: '⚜️', side: 'este' }
 ];
 
-// Compute exact 11x11 CSS Grid row & column for any tile 0..39
 function getTileGridPosition(id) {
   if (id === 0) return { gridRow: 11, gridColumn: 11 };
   if (id >= 1 && id <= 9) return { gridRow: 11, gridColumn: 11 - id };
@@ -87,7 +85,7 @@ function getTileGridPosition(id) {
   if (id === 20) return { gridRow: 1, gridColumn: 1 };
   if (id >= 21 && id <= 29) return { gridRow: 1, gridColumn: 1 + (id - 20) };
   if (id === 30) return { gridRow: 1, gridColumn: 11 };
-  return { gridRow: 1 + (id - 30), gridColumn: 11 }; // 31..39
+  return { gridRow: 1 + (id - 30), gridColumn: 11 };
 }
 
 const CHEST_CARDS = [
@@ -134,17 +132,15 @@ function DiceFace({ value, isRolling }) {
 
   return (
     <div
-      className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-white via-amber-50 to-slate-200 p-2 grid grid-cols-3 grid-rows-3 gap-0.5 shadow-[0_6px_0_#94a3b8,0_10px_18px_rgba(0,0,0,0.6)] border-2 border-white transition-transform ${
-        isRolling ? 'animate-spin scale-110' : ''
-      }`}
+      className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-white via-amber-50 to-slate-200 p-2 grid grid-cols-3 grid-rows-3 gap-0.5 shadow-[0_6px_0_#94a3b8,0_10px_18px_rgba(0,0,0,0.6)] border-2 border-white transition-transform ${isRolling ? 'animate-spin scale-110' : ''
+        }`}
     >
       {Array.from({ length: 9 }).map((_, idx) => (
         <div key={idx} className="flex items-center justify-center">
           {activePips.includes(idx) && (
             <span
-              className={`w-2.5 h-2.5 rounded-full ${
-                value === 1 || value === 4 ? 'bg-rose-600' : 'bg-slate-900'
-              }`}
+              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${value === 1 || value === 4 ? 'bg-rose-600' : 'bg-slate-900'
+                }`}
             />
           )}
         </div>
@@ -156,19 +152,23 @@ function DiceFace({ value, isRolling }) {
 export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
   const [players, setPlayers] = useState(INITIAL_PLAYERS);
   const [turnIdx, setTurnIdx] = useState(0);
-  const [ownership, setOwnership] = useState({}); // { tileId: { ownerId, level: 1..5 } } (1..4 carpas, 5 = Mangrullo)
+  const [ownership, setOwnership] = useState({});
   const [dice, setDice] = useState([3, 5]);
   const [isRolling, setIsRolling] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
-  const [turnPhase, setTurnPhase] = useState('roll'); // 'roll' | 'action' | 'gameover'
+  const [turnPhase, setTurnPhase] = useState('roll');
   const [eventMessage, setEventMessage] = useState(
-    '¡Tablero Oficial de 40 Casillas listo! Lanza los dados en el paño central para avanzar.'
+    '¡Tablero Oficial de 40 Casillas listo! Lanza los dados para avanzar.'
   );
   const [activeCard, setActiveCard] = useState(null);
   const [selectedTileId, setSelectedTileId] = useState(0);
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [winner, setWinner] = useState(null);
   const [editingPatrols, setEditingPatrols] = useState(false);
+
+  // Mobile Board View Mode: 'streets' (4 Calles adaptadas a celular) | 'fullboard' (Tablero 11x11 completo)
+  const [mobileBoardView, setMobileBoardView] = useState('streets');
+  const [activeSideTab, setActiveSideTab] = useState('sur'); // 'sur' | 'oeste' | 'norte' | 'este' | 'todas'
 
   const currentPlayer = players[turnIdx];
   const currentTile = BOARD_TILES[currentPlayer.pos];
@@ -189,13 +189,14 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
         prev.map((p, idx) => (idx === turnIdx ? { ...p, pos: nextPos } : p))
       );
       setSelectedTileId(nextPos);
+      setActiveSideTab(BOARD_TILES[nextPos].side);
 
       if (currentStep >= steps) {
         clearInterval(interval);
         setIsMoving(false);
         onComplete(nextPos, startPos + steps >= BOARD_TILES.length);
       }
-    }, 150);
+    }, 145);
   };
 
   const handleRollDice = () => {
@@ -216,7 +217,7 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
       animateMovement(startPos, steps, (landedPos, passedStart) => {
         resolveLandedTile(landedPos, passedStart, steps);
       });
-    }, 500);
+    }, 480);
   };
 
   const resolveLandedTile = (newPos, passedStart, steps) => {
@@ -250,6 +251,7 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
       if (typeof card.jumpTo === 'number') {
         finalPos = card.jumpTo;
         setSelectedTileId(card.jumpTo);
+        setActiveSideTab(BOARD_TILES[card.jumpTo].side);
       }
       msg += ` ¡Carta: ${card.title}!`;
       sound.playBadgeEarned();
@@ -353,6 +355,7 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
     const nextIdx = (turnIdx + 1) % players.length;
     setTurnIdx(nextIdx);
     setSelectedTileId(players[nextIdx].pos);
+    setActiveSideTab(BOARD_TILES[players[nextIdx].pos].side);
     setTurnPhase('roll');
     setActiveCard(null);
     setActiveQuiz(null);
@@ -386,6 +389,7 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
     setOwnership({});
     setTurnIdx(0);
     setSelectedTileId(0);
+    setActiveSideTab('sur');
     setTurnPhase('roll');
     setWinner(null);
     setActiveCard(null);
@@ -405,48 +409,257 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
     propOwner.level < 5 &&
     currentPlayer.money >= Math.round(currentTile.price * 0.5);
 
-  return (
-    <div className="w-full max-w-[1440px] mx-auto p-1.5 sm:p-3 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#0a231e] via-[#09152b] to-[#261707] border-2 border-emerald-500/50 rounded-3xl p-3.5 sm:p-5 mb-4 flex flex-col lg:flex-row items-center justify-between gap-4 card-3d">
-        <div className="flex items-center gap-3.5">
-          {onBack && (
-            <button
-              onClick={onBack}
-              className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Portal</span>
-            </button>
-          )}
-          <ScoutCharacter categoryId="monopoly" reaction="happy" size="sm" hideLabel />
-          <div>
-            <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
-              🎩 TABLERO OFICIAL COMPLETO • 40 CASILLAS (8 GRUPOS DE COLOR + 4 ESTACIONES)
+  const mobileFilteredTiles =
+    activeSideTab === 'todas'
+      ? BOARD_TILES
+      : BOARD_TILES.filter(t => t.side === activeSideTab);
+
+  // Reusable Action & Deed Hub (Used inside the 11x11 center on Desktop AND at the top on Mobile!)
+  const renderCenterActionAndDeedHub = () => (
+    <div className="space-y-3">
+      {/* Top Decks & Turn Indicator */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 items-center">
+        <button
+          onClick={() => {
+            const c = CHEST_CARDS[Math.floor(Math.random() * CHEST_CARDS.length)];
+            sound.playTick();
+            setActiveCard(c);
+          }}
+          className="bg-gradient-to-br from-sky-600 to-cyan-800 p-2.5 sm:p-3 rounded-2xl border-2 border-sky-200 shadow-md text-left"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xl">🎒</span>
+            <span className="text-[8px] font-black uppercase bg-sky-950/80 text-sky-200 px-1.5 py-0.5 rounded-full">
+              MAZO
             </span>
-            <h1 className="text-lg sm:text-2xl font-heading font-black text-white mt-0.5">
-              Gran Tablero de Mesa Monopoly Scout • 40 Casillas Reales
-            </h1>
-            <p className="text-xs text-slate-300">
-              Recorre las 40 casillas perimetrales alrededor del paño central: 22 parcelas en 8 colores, 4 transportes, 2 servicios de intendencia, mazos y esquinas.
-            </p>
+          </div>
+          <div className="text-xs font-heading font-black text-white mt-0.5">
+            Cofre Intendencia
+          </div>
+        </button>
+
+        <div className="col-span-2 sm:col-span-1 order-first sm:order-none text-center bg-slate-950/70 p-2 rounded-2xl border border-amber-400/30">
+          <div className="text-[10px] font-black uppercase text-amber-300">
+            ⚜️ MONOPOLY SCOUT • 40 CASILLAS
+          </div>
+          <div className="text-xs font-bold text-white mt-0.5">
+            Turno: <span className="text-amber-300 font-black">{currentPlayer.emoji} {currentPlayer.name}</span> (#{currentPlayer.pos})
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => {
+            const c = CHANCE_CARDS[Math.floor(Math.random() * CHANCE_CARDS.length)];
+            sound.playTick();
+            setActiveCard(c);
+          }}
+          className="bg-gradient-to-br from-orange-500 to-rose-700 p-2.5 sm:p-3 rounded-2xl border-2 border-amber-200 shadow-md text-left"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xl">🔥</span>
+            <span className="text-[8px] font-black uppercase bg-orange-950/80 text-amber-200 px-1.5 py-0.5 rounded-full">
+              MAZO
+            </span>
+          </div>
+          <div className="text-xs font-heading font-black text-white mt-0.5">
+            Suerte del Fogón
+          </div>
+        </button>
+      </div>
+
+      {/* Dice Tray + Property Deed Card */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-stretch">
+        <div className="md:col-span-7 bg-slate-950/90 border-2 border-emerald-500/30 rounded-2xl p-3.5 flex flex-col items-center justify-between text-center">
+          <div className="flex items-center justify-center gap-4 my-1">
+            <DiceFace value={dice[0]} isRolling={isRolling} />
+            <DiceFace value={dice[1]} isRolling={isRolling} />
+            <div className="text-left pl-1">
+              <div className="text-[10px] uppercase font-black text-slate-400">Suma</div>
+              <div className="text-xl font-mono font-black text-amber-400">{dice[0] + dice[1]}</div>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-200 mt-2 bg-slate-900 px-3 py-2 rounded-xl border border-slate-800 w-full leading-snug">
+            {eventMessage}
+          </p>
+
+          {activeCard && (
+            <div className="w-full mt-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-orange-500/25 border-2 border-amber-400 text-left animate-in zoom-in-95">
+              <div className="text-[10px] font-black uppercase text-amber-300">
+                {activeCard.deck} • {activeCard.title}
+              </div>
+              <div className="text-xs text-white mt-0.5">{activeCard.text}</div>
+            </div>
+          )}
+
+          {activeQuiz && (
+            <div className="w-full mt-2 p-2.5 rounded-xl bg-cyan-950 border-2 border-cyan-400 text-left">
+              <div className="text-[10px] font-black uppercase text-cyan-300 mb-1">
+                ⚜️ Trivia Scout (+80 ⚜️): {activeQuiz.q}
+              </div>
+              <div className="grid grid-cols-1 gap-1">
+                {activeQuiz.options.map((opt, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAnswerBonusQuiz(idx)}
+                    className="text-left text-xs px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-cyan-400 hover:text-slate-950 font-bold text-slate-200 transition"
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-2 w-full mt-3">
+            {turnPhase === 'roll' && (
+              <button
+                onClick={handleRollDice}
+                disabled={isRolling || isMoving}
+                className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 text-slate-950 font-heading font-black text-sm flex items-center justify-center gap-2 btn-3d"
+              >
+                <Dices className="w-5 h-5" />
+                <span>
+                  {isRolling
+                    ? 'Lanzando Dados...'
+                    : isMoving
+                      ? 'Avanzando Ficha...'
+                      : '¡Tirar Dados al Paño! 🎲'}
+                </span>
+              </button>
+            )}
+
+            {canBuy && (
+              <button
+                onClick={handleBuyProperty}
+                className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-heading font-black text-xs flex items-center justify-center gap-1.5 btn-3d"
+              >
+                <Tent className="w-4 h-4" />
+                <span>Comprar Escritura (⚜️ {currentTile.price})</span>
+              </button>
+            )}
+
+            {canUpgrade && (
+              <button
+                onClick={handleUpgradeProperty}
+                className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 font-heading font-black text-xs flex items-center justify-center gap-1.5 btn-3d"
+              >
+                <span>
+                  {propOwner.level === 4
+                    ? `🗼 Construir Mangrullo (⚜️ ${Math.round(currentTile.price * 0.5)})`
+                    : `⛺ Agregar Carpa #${propOwner.level + 1} (⚜️ ${Math.round(currentTile.price * 0.5)})`}
+                </span>
+              </button>
+            )}
+
+            {turnPhase === 'action' && (
+              <button
+                onClick={handleEndTurn}
+                className="w-full sm:w-auto py-2.5 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-heading font-black text-xs border border-slate-600"
+              >
+                Pasar Turno →
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Physical Title Deed Card */}
+        <div className="md:col-span-5 bg-[#fcfaf2] text-slate-900 rounded-2xl border-2 border-slate-900 p-3 shadow-xl flex flex-col justify-between">
+          <div>
+            <div
+              className="rounded-xl p-2 text-center border border-black/20 shadow-sm"
+              style={{ backgroundColor: inspectedTile.color }}
+            >
+              <div className="text-[8px] font-black uppercase tracking-widest text-white/95 drop-shadow">
+                CASILLA #{inspectedTile.id} • {inspectedTile.group || 'ESPECIAL'}
+              </div>
+              <div className="text-xs sm:text-sm font-heading font-black text-white drop-shadow leading-tight mt-0.5">
+                {inspectedTile.emoji} {inspectedTile.name}
+              </div>
+            </div>
+
+            {isBuyableType(inspectedTile.type) ? (
+              <div className="mt-2 space-y-0.5 text-[11px]">
+                <div className="flex justify-between font-bold border-b border-slate-300 pb-0.5">
+                  <span>Valor Escritura:</span>
+                  <span className="font-mono font-black text-emerald-800">⚜️ {inspectedTile.price}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>⛺ 1 Carpa:</span>
+                  <span className="font-mono font-bold">⚜️ {inspectedTile.rent}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>⛺⛺ 2 Carpas:</span>
+                  <span className="font-mono font-bold">⚜️ {inspectedTile.rent * 2}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>⛺x3 / ⛺x4:</span>
+                  <span className="font-mono font-bold">⚜️ {inspectedTile.rent * 3} / {inspectedTile.rent * 4}</span>
+                </div>
+                <div className="flex justify-between pt-0.5">
+                  <span>🗼 Mangrullo Mayor:</span>
+                  <span className="font-mono font-black text-amber-700">⚜️ {inspectedTile.rent * 5}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 text-xs text-slate-700 text-center py-2">
+                <p className="font-bold">{inspectedTile.desc}</p>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleTriggerScoutBonusQuiz}
+            className="mt-2 w-full py-1.5 px-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-600/40 text-amber-950 font-black text-[10px] flex items-center justify-center gap-1 transition"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-amber-700" />
+            <span>Trivia Scout Extra (+80 ⚜️)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="w-full max-w-[1440px] mx-auto p-1.5 sm:p-3 pb-20 md:pb-6 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#0a231e] via-[#09152b] to-[#261707] border-2 border-emerald-500/50 rounded-3xl p-3 sm:p-5 mb-3 sm:mb-4 flex flex-col lg:flex-row items-center justify-between gap-3 card-3d">
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="p-2 sm:p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Portal</span>
+            </button>
+          )}
+          <ScoutCharacter categoryId="monopoly" reaction="happy" size="sm" hideLabel className="hidden sm:flex" />
+          <div>
+            <span className="text-[9px] sm:text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+              🎩 TABLERO OFICIAL • 40 CASILLAS (ADAPTADO A CELULAR Y PC)
+            </span>
+            <h1 className="text-base sm:text-2xl font-heading font-black text-white mt-0.5">
+              Monopoly Scout • 40 Casillas Reales
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <button
             onClick={() => setEditingPatrols(!editingPatrols)}
             className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 font-bold text-xs flex items-center gap-1.5"
           >
-            <Users className="w-4 h-4" />
-            <span>{editingPatrols ? 'Cerrar Nombres' : 'Editar Patrullas'}</span>
+            <Users className="w-3.5 h-3.5" />
+            <span>Patrullas</span>
           </button>
           <button
             onClick={handleFinishAndRank}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs flex items-center gap-1.5 btn-3d"
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs flex items-center gap-1.5 btn-3d"
           >
-            <Trophy className="w-4 h-4" />
-            <span>Finalizar y Guardar Ranking</span>
+            <Trophy className="w-3.5 h-3.5" />
+            <span>Guardar Ganador</span>
           </button>
           <button
             onClick={handleReset}
@@ -460,9 +673,9 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
 
       {/* Patrol Name Editor */}
       {editingPatrols && (
-        <div className="bg-slate-900/95 border-2 border-cyan-500/40 rounded-2xl p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-slate-900/95 border-2 border-cyan-500/40 rounded-2xl p-3 sm:p-4 mb-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           {players.map((p, idx) => (
-            <div key={p.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div key={p.id} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
               <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">
                 Ficha {p.emoji} Patrulla #{idx + 1}
               </label>
@@ -481,55 +694,176 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
       )}
 
       {/* 4 Patrol Wallets */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
         {players.map((p, idx) => {
           const isTurn = idx === turnIdx;
           return (
             <div
               key={p.id}
-              className={`p-3 rounded-2xl border-2 transition-all flex items-center justify-between ${
-                isTurn
-                  ? 'bg-gradient-to-r from-slate-900 to-emerald-950/90 border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.35)] scale-[1.01]'
+              className={`p-2.5 sm:p-3 rounded-2xl border-2 transition-all flex items-center justify-between ${isTurn
+                  ? 'bg-gradient-to-r from-slate-900 to-emerald-950/90 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.35)]'
                   : 'bg-slate-950/85 border-slate-800 opacity-85'
-              }`}
+                }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <div
-                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-md border-2 border-white shrink-0"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-base sm:text-xl shadow border border-white shrink-0"
                   style={{ backgroundColor: p.color }}
                 >
                   {p.emoji}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-heading font-black text-white truncate">
+                  <div className="text-xs font-heading font-black text-white truncate">
                     {p.name}
                   </div>
                   <div className="text-[10px] text-slate-300 font-semibold">
-                    Casilla #{p.pos} • ⛺ {p.camps} escrituras
+                    #{p.pos} • ⛺ {p.camps}
                   </div>
                 </div>
               </div>
-              <div className="text-right shrink-0 pl-2">
-                <div className="text-sm sm:text-base font-mono font-black text-amber-400">
-                  ⚜️ {p.money}
+              <div className="text-right shrink-0 pl-1">
+                <div className="text-xs sm:text-base font-mono font-black text-amber-400">
+                  ⚜️{p.money}
                 </div>
-                <div className="text-[9px] text-emerald-300 uppercase font-bold">Florines</div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* AUTHENTIC 11x11 FULL-SIZE 40-TILE TABLETOP BOARD */}
-      <div className="bg-gradient-to-br from-[#3e2723] via-[#4e342e] to-[#271815] p-2.5 sm:p-4 rounded-[2rem] border-4 border-[#8d6e63] shadow-[0_20px_50px_rgba(0,0,0,0.85)] overflow-x-auto">
+      {/* MOBILE / TABLET DEDICATED PAÑO CENTRAL & STREET VIEW (< 1024px) */}
+      <div className="lg:hidden space-y-3 mb-4">
+        <div className="bg-gradient-to-br from-[#0e3b2e] via-[#09271f] to-[#061a14] rounded-3xl border-2 border-amber-400/50 p-3 shadow-xl">
+          {renderCenterActionAndDeedHub()}
+        </div>
+
+        {/* Mobile View Switcher: Calles del Tablero vs Tablero 11x11 Completo */}
+        <div className="flex items-center justify-between gap-2 bg-slate-900 p-2 rounded-2xl border border-slate-800">
+          <button
+            onClick={() => setMobileBoardView('streets')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-heading font-black flex items-center justify-center gap-1.5 ${mobileBoardView === 'streets'
+                ? 'bg-emerald-500 text-slate-950'
+                : 'text-slate-300'
+              }`}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Vista Celular (Por Calles)</span>
+          </button>
+          <button
+            onClick={() => setMobileBoardView('fullboard')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-heading font-black flex items-center justify-center gap-1.5 ${mobileBoardView === 'fullboard'
+                ? 'bg-amber-400 text-slate-950'
+                : 'text-slate-300'
+              }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>Tablero 11×11 Completo</span>
+          </button>
+        </div>
+
+        {mobileBoardView === 'streets' && (
+          <div className="bg-gradient-to-br from-[#3e2723] to-[#271815] p-2.5 rounded-3xl border-2 border-[#8d6e63]">
+            {/* 4 Street Tabs */}
+            <div className="grid grid-cols-5 gap-1 mb-2.5 bg-slate-950 p-1 rounded-xl">
+              {[
+                { id: 'sur', label: 'Sur #0-9' },
+                { id: 'oeste', label: 'Oeste #10-19' },
+                { id: 'norte', label: 'Norte #20-29' },
+                { id: 'este', label: 'Este #30-39' },
+                { id: 'todas', label: 'Las 40' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveSideTab(tab.id)}
+                  className={`py-1.5 px-1 rounded-lg text-[10px] font-black transition ${activeSideTab === tab.id
+                      ? 'bg-amber-400 text-slate-950'
+                      : 'text-slate-300 hover:bg-slate-800'
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 2-Column Mobile Cards for the Selected Street */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {mobileFilteredTiles.map(tile => {
+                const ownerInfo = ownership[tile.id];
+                const ownerPlayer = ownerInfo
+                  ? players.find(p => p.id === ownerInfo.ownerId)
+                  : null;
+                const playersHere = players.filter(p => p.pos === tile.id);
+                const isCurrentPos = currentPlayer.pos === tile.id;
+
+                return (
+                  <div
+                    key={tile.id}
+                    onClick={() => setSelectedTileId(tile.id)}
+                    className={`rounded-2xl overflow-hidden border-2 flex flex-col justify-between p-2 transition-all ${isCurrentPos
+                        ? 'bg-[#fff8dc] text-slate-950 border-amber-400 ring-2 ring-amber-400'
+                        : 'bg-[#f6f3e8] text-slate-900 border-slate-400'
+                      }`}
+                  >
+                    <div
+                      className="h-5 -mx-2 -mt-2 mb-1.5 px-2 flex items-center justify-between text-white"
+                      style={{ backgroundColor: tile.color }}
+                    >
+                      <span className="text-[9px] font-mono font-black bg-black/40 px-1.5 rounded">
+                        #{tile.id}
+                      </span>
+                      {ownerPlayer && (
+                        <span className="text-[10px]">
+                          {ownerPlayer.emoji} {ownerInfo.level === 5 ? '🗼' : '⛺'.repeat(ownerInfo.level)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 my-1">
+                      <span className="text-2xl">{tile.emoji}</span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-heading font-black leading-tight text-slate-900">
+                          {tile.name}
+                        </div>
+                        <div className="text-[10px] font-bold text-emerald-800">
+                          {tile.price ? `⚜️ ${tile.price} • Renta ${tile.rent}` : tile.desc}
+                        </div>
+                      </div>
+                    </div>
+
+                    {playersHere.length > 0 && (
+                      <div className="flex items-center gap-1 pt-1 border-t border-slate-300">
+                        <span className="text-[9px] font-bold text-slate-600">En casilla:</span>
+                        {playersHere.map(p => (
+                          <span
+                            key={p.id}
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-xs border border-white shadow"
+                            style={{ backgroundColor: p.color }}
+                          >
+                            {p.emoji}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* AUTHENTIC 11x11 FULL-SIZE 40-TILE TABLETOP BOARD (Always visible on Desktop, or when selected on Mobile) */}
+      <div
+        className={`${mobileBoardView === 'fullboard' ? 'block' : 'hidden lg:block'
+          } bg-gradient-to-br from-[#3e2723] via-[#4e342e] to-[#271815] p-2 sm:p-4 rounded-[2rem] border-4 border-[#8d6e63] shadow-[0_20px_50px_rgba(0,0,0,0.85)] overflow-x-auto`}
+      >
         <div
-          className="min-w-[980px] grid gap-1.5 bg-[#0b2e23] p-2.5 rounded-3xl border-4 border-amber-400/50"
+          className="min-w-[920px] grid gap-1.5 bg-[#0b2e23] p-2.5 rounded-3xl border-4 border-amber-400/50"
           style={{
-            gridTemplateColumns: '1.25fr repeat(9, minmax(74px, 1fr)) 1.25fr',
-            gridTemplateRows: '1.15fr repeat(9, minmax(74px, 1fr)) 1.15fr'
+            gridTemplateColumns: '1.25fr repeat(9, minmax(70px, 1fr)) 1.25fr',
+            gridTemplateRows: '1.15fr repeat(9, minmax(70px, 1fr)) 1.15fr'
           }}
         >
-          {/* 40 PERIMETER TILES (0..39) */}
           {BOARD_TILES.map(tile => {
             const posStyle = getTileGridPosition(tile.id);
             const ownerInfo = ownership[tile.id];
@@ -546,17 +880,15 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
                 key={tile.id}
                 style={posStyle}
                 onClick={() => setSelectedTileId(tile.id)}
-                className={`cursor-pointer relative rounded-xl overflow-hidden border-2 flex flex-col justify-between p-1 transition-all select-none ${
-                  isCurrentPos
+                className={`cursor-pointer relative rounded-xl overflow-hidden border-2 flex flex-col justify-between p-1 transition-all select-none ${isCurrentPos
                     ? 'bg-[#fff8dc] text-slate-950 border-amber-400 ring-4 ring-amber-400/70 z-20 scale-[1.04]'
                     : isSelected
-                    ? 'bg-[#f4f1ea] text-slate-950 border-cyan-400 z-10'
-                    : isCorner
-                    ? 'bg-gradient-to-br from-amber-100 via-amber-50 to-orange-100 text-slate-950 border-amber-700/60 hover:brightness-105'
-                    : 'bg-[#f6f3e8] text-slate-900 border-slate-500/70 hover:border-amber-400'
-                }`}
+                      ? 'bg-[#f4f1ea] text-slate-950 border-cyan-400 z-10'
+                      : isCorner
+                        ? 'bg-gradient-to-br from-amber-100 via-amber-50 to-orange-100 text-slate-950 border-amber-700/60 hover:brightness-105'
+                        : 'bg-[#f6f3e8] text-slate-900 border-slate-500/70 hover:border-amber-400'
+                  }`}
               >
-                {/* Color Deed Strip */}
                 <div
                   className="h-4 w-full px-1 rounded-t-md flex items-center justify-between border-b border-black/20"
                   style={{ backgroundColor: tile.color }}
@@ -571,7 +903,6 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
                   )}
                 </div>
 
-                {/* Tile Icon & Name */}
                 <div className="text-center my-auto px-0.5">
                   <div className="text-base sm:text-lg leading-none">{tile.emoji}</div>
                   <div className="text-[9px] font-heading font-black text-slate-900 leading-tight line-clamp-2 mt-0.5">
@@ -579,7 +910,6 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
                   </div>
                 </div>
 
-                {/* Footer: Price & Active Pawns */}
                 <div className="flex items-center justify-between pt-0.5 border-t border-slate-300/90">
                   {tile.price ? (
                     <span className="text-[8px] font-mono font-black text-emerald-900 bg-emerald-200/70 px-1 rounded">
@@ -590,10 +920,9 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
                       -{tile.amount}
                     </span>
                   ) : (
-                    <span className="text-[7px] font-bold text-slate-600 uppercase">Especial</span>
+                    <span className="text-[7px] font-bold text-slate-600 uppercase">Esp</span>
                   )}
 
-                  {/* Player Pawns on this Tile */}
                   <div className="flex items-center -space-x-1.5">
                     {playersHere.map(p => (
                       <span
@@ -611,240 +940,12 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
             );
           })}
 
-          {/* CENTRAL TABLETOP MAT (Rows 2..10, Cols 2..10 inside the 11x11 board) */}
+          {/* CENTRAL TABLETOP MAT (Rows 2..10, Cols 2..10) */}
           <div
             style={{ gridRow: '2 / 11', gridColumn: '2 / 11' }}
-            className="bg-gradient-to-br from-[#0e3b2e] via-[#09271f] to-[#061a14] rounded-3xl border-4 border-amber-400/50 p-4 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-inner"
+            className="bg-gradient-to-br from-[#0e3b2e] via-[#09271f] to-[#061a14] rounded-3xl border-4 border-amber-400/50 p-5 flex flex-col justify-between relative overflow-hidden shadow-inner"
           >
-            {/* Watermark */}
-            <div className="absolute -right-8 -bottom-8 text-[140px] opacity-10 pointer-events-none select-none">
-              ⚜️
-            </div>
-
-            {/* Top Row inside Center Mat: Physical Card Decks + Center Banner */}
-            <div className="grid grid-cols-3 gap-4 items-center">
-              {/* Cofre de Intendencia Deck */}
-              <button
-                onClick={() => {
-                  const c = CHEST_CARDS[Math.floor(Math.random() * CHEST_CARDS.length)];
-                  sound.playTick();
-                  setActiveCard(c);
-                }}
-                className="bg-gradient-to-br from-sky-600 to-cyan-800 p-3.5 rounded-2xl border-2 border-sky-200 shadow-[0_6px_0_#075985] hover:translate-y-0.5 transition text-left -rotate-2 hover:rotate-0"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl">🎒</span>
-                  <span className="text-[9px] font-black uppercase bg-sky-950/80 text-sky-200 px-2 py-0.5 rounded-full">
-                    MAZO DE MESA
-                  </span>
-                </div>
-                <div className="text-xs sm:text-sm font-heading font-black text-white mt-1">
-                  Cofre de Intendencia
-                </div>
-                <div className="text-[10px] text-sky-100">Casillas #2, #17 y #33</div>
-              </button>
-
-              {/* Center Emblem */}
-              <div className="text-center">
-                <div className="inline-block bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-heading font-black text-sm sm:text-base px-4 py-1.5 rounded-2xl border-2 border-white shadow-lg uppercase tracking-wider">
-                  ⚜️ MONOPOLY SCOUT 40 CASILLAS ⚜️
-                </div>
-                <div className="text-xs font-bold text-emerald-200 mt-1.5">
-                  Turno Actual:{' '}
-                  <span className="text-amber-300 font-black">
-                    {currentPlayer.emoji} {currentPlayer.name} (Casilla #{currentPlayer.pos})
-                  </span>
-                </div>
-              </div>
-
-              {/* Suerte del Fogón Deck */}
-              <button
-                onClick={() => {
-                  const c = CHANCE_CARDS[Math.floor(Math.random() * CHANCE_CARDS.length)];
-                  sound.playTick();
-                  setActiveCard(c);
-                }}
-                className="bg-gradient-to-br from-orange-500 to-rose-700 p-3.5 rounded-2xl border-2 border-amber-200 shadow-[0_6px_0_#9a3412] hover:translate-y-0.5 transition text-left rotate-2 hover:rotate-0"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl">🔥</span>
-                  <span className="text-[9px] font-black uppercase bg-orange-950/80 text-amber-200 px-2 py-0.5 rounded-full">
-                    MAZO DE MESA
-                  </span>
-                </div>
-                <div className="text-xs sm:text-sm font-heading font-black text-white mt-1">
-                  Suerte del Fogón
-                </div>
-                <div className="text-[10px] text-amber-100">Casillas #7, #22 y #36</div>
-              </button>
-            </div>
-
-            {/* Center Area: 3D Dice Tray + Physical Title Deed Inspector */}
-            <div className="grid grid-cols-12 gap-5 my-auto items-center py-3">
-              {/* Dice Tray & Action Buttons */}
-              <div className="col-span-7 bg-slate-950/85 border-2 border-emerald-500/30 rounded-3xl p-4 flex flex-col items-center text-center shadow-xl">
-                <div className="flex items-center justify-center gap-6 my-1">
-                  <DiceFace value={dice[0]} isRolling={isRolling} />
-                  <DiceFace value={dice[1]} isRolling={isRolling} />
-                </div>
-                <div className="text-xs font-bold text-amber-300 mt-2">
-                  Dados: <span className="font-mono font-black text-white">{dice[0]} + {dice[1]} = {dice[0] + dice[1]}</span>
-                </div>
-
-                <p className="text-xs text-slate-200 mt-2.5 bg-slate-900/95 px-3.5 py-2.5 rounded-2xl border border-slate-800 w-full leading-relaxed">
-                  {eventMessage}
-                </p>
-
-                {activeCard && (
-                  <div className="w-full mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-amber-500/25 to-orange-500/25 border-2 border-amber-400 text-left animate-in zoom-in-95">
-                    <div className="text-[10px] font-black uppercase text-amber-300">
-                      {activeCard.deck} • {activeCard.title}
-                    </div>
-                    <div className="text-xs text-white mt-0.5">{activeCard.text}</div>
-                  </div>
-                )}
-
-                {activeQuiz && (
-                  <div className="w-full mt-2.5 p-3 rounded-2xl bg-cyan-950/95 border-2 border-cyan-400 text-left">
-                    <div className="text-[10px] font-black uppercase text-cyan-300 mb-1.5">
-                      ⚜️ Trivia Scout por +80 Florines: {activeQuiz.q}
-                    </div>
-                    <div className="grid grid-cols-1 gap-1.5">
-                      {activeQuiz.options.map((opt, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleAnswerBonusQuiz(idx)}
-                          className="text-left text-xs px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-cyan-400 hover:text-slate-950 font-bold text-slate-200 transition"
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap items-center justify-center gap-2.5 w-full mt-3.5">
-                  {turnPhase === 'roll' && (
-                    <button
-                      onClick={handleRollDice}
-                      disabled={isRolling || isMoving}
-                      className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 text-slate-950 font-heading font-black text-sm flex items-center justify-center gap-2 btn-3d"
-                    >
-                      <Dices className="w-5 h-5" />
-                      <span>
-                        {isRolling
-                          ? 'Lanzando Dados...'
-                          : isMoving
-                          ? 'Moviendo Ficha...'
-                          : '¡Tirar Dados al Paño! 🎲'}
-                      </span>
-                    </button>
-                  )}
-
-                  {canBuy && (
-                    <button
-                      onClick={handleBuyProperty}
-                      className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-heading font-black text-xs flex items-center justify-center gap-1.5 btn-3d"
-                    >
-                      <Tent className="w-4 h-4" />
-                      <span>Comprar Escritura (⚜️ {currentTile.price})</span>
-                    </button>
-                  )}
-
-                  {canUpgrade && (
-                    <button
-                      onClick={handleUpgradeProperty}
-                      className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 font-heading font-black text-xs flex items-center justify-center gap-1.5 btn-3d"
-                    >
-                      <span>
-                        {propOwner.level === 4
-                          ? `🗼 Construir Mangrullo (⚜️ ${Math.round(currentTile.price * 0.5)})`
-                          : `⛺ Agregar Carpa #${propOwner.level + 1} (⚜️ ${Math.round(currentTile.price * 0.5)})`}
-                      </span>
-                    </button>
-                  )}
-
-                  {turnPhase === 'action' && (
-                    <button
-                      onClick={handleEndTurn}
-                      className="py-3 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-heading font-black text-xs border border-slate-600"
-                    >
-                      Pasar Turno →
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Physical Property Deed Card */}
-              <div className="col-span-5 bg-[#fcfaf2] text-slate-900 rounded-3xl border-2 border-slate-900 p-4 shadow-2xl flex flex-col justify-between">
-                <div>
-                  <div
-                    className="rounded-2xl p-2.5 text-center border border-black/20 shadow-sm"
-                    style={{ backgroundColor: inspectedTile.color }}
-                  >
-                    <div className="text-[9px] font-black uppercase tracking-widest text-white/95 drop-shadow">
-                      ESCRITURA CASILLA #{inspectedTile.id} • {inspectedTile.group || 'ESPECIAL'}
-                    </div>
-                    <div className="text-sm font-heading font-black text-white drop-shadow leading-tight mt-0.5">
-                      {inspectedTile.emoji} {inspectedTile.name}
-                    </div>
-                  </div>
-
-                  {isBuyableType(inspectedTile.type) ? (
-                    <div className="mt-3 space-y-1 text-xs">
-                      <div className="flex justify-between font-bold border-b border-slate-300 pb-1">
-                        <span>Precio de Compra:</span>
-                        <span className="font-mono font-black text-emerald-800">⚜️ {inspectedTile.price}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>⛺ Con 1 Carpa:</span>
-                        <span className="font-mono font-bold">⚜️ {inspectedTile.rent}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>⛺⛺ Con 2 Carpas:</span>
-                        <span className="font-mono font-bold">⚜️ {inspectedTile.rent * 2}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>⛺⛺⛺ Con 3 Carpas:</span>
-                        <span className="font-mono font-bold">⚜️ {inspectedTile.rent * 3}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>⛺x4 Con 4 Carpas:</span>
-                        <span className="font-mono font-bold">⚜️ {inspectedTile.rent * 4}</span>
-                      </div>
-                      <div className="flex justify-between pt-0.5">
-                        <span>🗼 Con Mangrullo Mayor:</span>
-                        <span className="font-mono font-black text-amber-700">⚜️ {inspectedTile.rent * 5}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-4 text-xs text-slate-700 text-center py-4">
-                      <p className="font-bold">{inspectedTile.desc}</p>
-                      <p className="text-[10px] text-slate-500 mt-1">
-                        Haz clic en cualquiera de las 40 casillas del tablero para ver su tarjeta.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={handleTriggerScoutBonusQuiz}
-                  className="mt-3 w-full py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-600/40 text-amber-950 font-black text-[11px] flex items-center justify-center gap-1.5 transition"
-                >
-                  <HelpCircle className="w-4 h-4 text-amber-700" />
-                  <span>Responder Trivia Scout (+80 ⚜️)</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Bottom Legend inside Center Mat */}
-            <div className="flex items-center justify-between text-[11px] text-emerald-200/90 border-t border-emerald-800/80 pt-2">
-              <span>💡 Toca cualquier casilla (#0 a #39) para inspeccionar su título de propiedad.</span>
-              <span className="font-mono font-bold text-amber-300">
-                40 Casillas Oficiales • 8 Grupos de Color
-              </span>
-            </div>
+            {renderCenterActionAndDeedHub()}
           </div>
         </div>
       </div>

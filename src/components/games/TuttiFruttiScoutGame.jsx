@@ -411,7 +411,7 @@ export default function TuttiFruttiScoutGame({ onBack, activeContext = {} }) {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-2 sm:p-4 animate-in fade-in duration-300">
+    <div className="w-full max-w-7xl mx-auto p-2 sm:p-4 pb-28 md:pb-6 animate-in fade-in duration-300">
       {/* Top Header with Tito el Mono Escriba 3D */}
       <div className="bg-gradient-to-r from-[#2b0c1e] via-[#09152b] to-[#1f1308] border-2 border-rose-500/50 rounded-3xl p-4 sm:p-6 mb-5 flex flex-col lg:flex-row items-center justify-between gap-4 card-3d">
         <div className="flex items-center gap-4">
@@ -752,40 +752,40 @@ export default function TuttiFruttiScoutGame({ onBack, activeContext = {} }) {
 
         {/* Historical Rounds & Automatic Scoring Table */}
         {roundsHistory.length > 0 && (
-          <div className="p-4 sm:p-6 overflow-x-auto">
+          <div className="p-4 sm:p-6">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-600 mb-3">
               📊 Historial de Rondas y Puntuación (10 pts palabra única • 5 pts repetida • 0 vacía)
             </h3>
-            <table className="w-full text-left border-collapse min-w-[650px]">
-              <thead>
-                <tr className="bg-slate-900 text-white text-[11px] uppercase font-black">
-                  <th className="p-2.5 rounded-tl-xl">Letra</th>
-                  {columns.map(col => (
-                    <th key={col} className="p-2.5 border-l border-slate-700">
-                      {col}
-                    </th>
-                  ))}
-                  <th className="p-2.5 border-l border-slate-700">Cantó Basta</th>
-                  <th className="p-2.5 rounded-tr-xl border-l border-slate-700 text-right">
-                    Total Ronda
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-300 text-xs">
-                {roundsHistory.map(round => (
-                  <tr key={round.id} className="hover:bg-amber-50/70">
-                    <td className="p-2.5 font-heading font-black text-lg text-amber-700 bg-amber-100/60 text-center">
-                      {round.letter}
-                    </td>
+
+            {/* Mobile Round Cards (No horizontal scrolling needed on phones) */}
+            <div className="md:hidden space-y-3">
+              {roundsHistory.map(round => (
+                <div key={round.id} className="rounded-2xl border-2 border-amber-700/40 bg-amber-50/70 p-3">
+                  <div className="flex items-center justify-between border-b border-amber-700/20 pb-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 font-heading font-black text-base flex items-center justify-center">
+                        {round.letter}
+                      </span>
+                      <div>
+                        <div className="text-[11px] font-black text-rose-700">🛑 {round.caller}</div>
+                        <div className="text-[10px] text-slate-500">Ronda calificada</div>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-xl bg-emerald-700 text-white font-mono font-black text-xs">
+                      +{round.totalPoints} pts
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
                     {columns.map(col => {
                       const cell = round.results[col];
-                      if (!cell) return <td key={col} className="p-2.5">—</td>;
+                      if (!cell) return null;
                       return (
-                        <td key={col} className="p-2.5 border-l border-slate-200">
-                          <div className="font-bold text-slate-900">{cell.word}</div>
-                          <div className="flex items-center justify-between mt-0.5">
+                        <div key={col} className="bg-white rounded-xl p-2 border border-slate-200">
+                          <div className="text-[9px] font-black uppercase text-slate-500 truncate">{col}</div>
+                          <div className="text-xs font-bold text-slate-900 truncate">{cell.word}</div>
+                          <div className="flex items-center justify-between mt-1">
                             <span
-                              className={`text-[10px] font-black px-1.5 py-0.5 rounded ${cell.pts === 10
+                              className={`text-[9px] font-black px-1.5 py-0.5 rounded ${cell.pts === 10
                                   ? 'bg-emerald-100 text-emerald-800'
                                   : cell.pts === 5
                                     ? 'bg-amber-100 text-amber-800'
@@ -794,26 +794,105 @@ export default function TuttiFruttiScoutGame({ onBack, activeContext = {} }) {
                             >
                               +{cell.pts} pts
                             </span>
-                            <span className="text-[9px] text-slate-500">
+                            <span className="text-[8px] text-slate-500 truncate ml-1">
                               Mesa: {cell.rivalWord}
                             </span>
                           </div>
-                        </td>
+                        </div>
                       );
                     })}
-                    <td className="p-2.5 border-l border-slate-200 text-[11px] font-bold text-rose-700">
-                      🛑 {round.caller}
-                    </td>
-                    <td className="p-2.5 border-l border-slate-200 text-right font-mono font-black text-sm text-emerald-800">
-                      {round.totalPoints} pts
-                    </td>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Full Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[650px]">
+                <thead>
+                  <tr className="bg-slate-900 text-white text-[11px] uppercase font-black">
+                    <th className="p-2.5 rounded-tl-xl">Letra</th>
+                    {columns.map(col => (
+                      <th key={col} className="p-2.5 border-l border-slate-700">
+                        {col}
+                      </th>
+                    ))}
+                    <th className="p-2.5 border-l border-slate-700">Cantó Basta</th>
+                    <th className="p-2.5 rounded-tr-xl border-l border-slate-700 text-right">
+                      Total Ronda
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-300 text-xs">
+                  {roundsHistory.map(round => (
+                    <tr key={round.id} className="hover:bg-amber-50/70">
+                      <td className="p-2.5 font-heading font-black text-lg text-amber-700 bg-amber-100/60 text-center">
+                        {round.letter}
+                      </td>
+                      {columns.map(col => {
+                        const cell = round.results[col];
+                        if (!cell) return <td key={col} className="p-2.5">—</td>;
+                        return (
+                          <td key={col} className="p-2.5 border-l border-slate-200">
+                            <div className="font-bold text-slate-900">{cell.word}</div>
+                            <div className="flex items-center justify-between mt-0.5">
+                              <span
+                                className={`text-[10px] font-black px-1.5 py-0.5 rounded ${cell.pts === 10
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : cell.pts === 5
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-rose-100 text-rose-800'
+                                  }`}
+                              >
+                                +{cell.pts} pts
+                              </span>
+                              <span className="text-[9px] text-slate-500">
+                                Mesa: {cell.rivalWord}
+                              </span>
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td className="p-2.5 border-l border-slate-200 text-[11px] font-bold text-rose-700">
+                        🛑 {round.caller}
+                      </td>
+                      <td className="p-2.5 border-l border-slate-200 text-right font-mono font-black text-sm text-emerald-800">
+                        {round.totalPoints} pts
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Sticky Mobile Floating Bar during Active Writing so phone players can see Letter, Timer, and hit ¡BASTA! immediately */}
+      {roundState === 'writing' && (
+        <div className="md:hidden fixed bottom-16 left-2 right-2 z-30 bg-slate-950/95 backdrop-blur-md border-2 border-rose-500 rounded-2xl p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.85)] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 font-heading font-black text-xl flex items-center justify-center shrink-0">
+              {activeLetter}
+            </span>
+            <div>
+              <div className="text-[10px] font-black uppercase text-amber-300">Letra Activa</div>
+              <div className="text-xs font-mono font-black text-rose-300 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                <span>{timeLeft}s</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => handlePressBasta()}
+            className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-600 via-red-500 to-orange-500 text-white font-heading font-black text-xs flex items-center justify-center gap-1.5 shadow-lg active:scale-95"
+          >
+            <Hand className="w-4 h-4 shrink-0" />
+            <span>🛑 ¡BASTA PARA TODOS!</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

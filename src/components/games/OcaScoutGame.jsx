@@ -12,7 +12,9 @@ import {
   Plus,
   Trash2,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Smartphone,
+  LayoutGrid
 } from 'lucide-react';
 import ScoutCharacter from '../characters/ScoutCharacter';
 import { sound } from '../../utils/audio';
@@ -165,17 +167,15 @@ function Die3D({ value, isRolling }) {
 
   return (
     <div
-      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-white via-amber-50 to-slate-200 p-2.5 grid grid-cols-3 grid-rows-3 gap-1 shadow-[0_7px_0_#94a3b8,0_12px_20px_rgba(0,0,0,0.6)] border-2 border-white ${
-        isRolling ? 'animate-spin scale-110' : ''
-      }`}
+      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-white via-amber-50 to-slate-200 p-2.5 grid grid-cols-3 grid-rows-3 gap-1 shadow-[0_7px_0_#94a3b8,0_12px_20px_rgba(0,0,0,0.6)] border-2 border-white ${isRolling ? 'animate-spin scale-110' : ''
+        }`}
     >
       {Array.from({ length: 9 }).map((_, idx) => (
         <div key={idx} className="flex items-center justify-center">
           {activePips.includes(idx) && (
             <span
-              className={`w-2.5 h-2.5 rounded-full ${
-                value === 1 || value === 4 ? 'bg-rose-600' : 'bg-slate-900'
-              }`}
+              className={`w-2.5 h-2.5 rounded-full ${value === 1 || value === 4 ? 'bg-rose-600' : 'bg-slate-900'
+                }`}
             />
           )}
         </div>
@@ -241,6 +241,8 @@ export default function OcaScoutGame({
   const [selectedTileId, setSelectedTileId] = useState(1);
   const [winner, setWinner] = useState(null);
   const [editingTeams, setEditingTeams] = useState(false);
+  const [mobileBoardView, setMobileBoardView] = useState('trail'); // 'trail' | 'spiral'
+  const [activeRingTab, setActiveRingTab] = useState(1); // 1 (#1-28) | 2 (#29-48) | 3 (#49-63) | 0 (Todas)
 
   useEffect(() => {
     try {
@@ -372,6 +374,7 @@ export default function OcaScoutGame({
       curr += stepDir;
       sound.playTick();
       setSelectedTileId(curr);
+      setActiveRingTab(curr <= 28 ? 1 : curr <= 48 ? 2 : 3);
       setTeams(prev => prev.map((t, i) => (i === turn ? { ...t, pos: curr } : t)));
     }, 150);
   };
@@ -559,11 +562,10 @@ export default function OcaScoutGame({
           <div className="flex bg-slate-950 p-1 rounded-2xl border border-slate-700">
             <button
               onClick={() => setOcaMode('questions')}
-              className={`px-3 py-2 rounded-xl text-xs font-heading font-black flex items-center gap-1.5 transition ${
-                ocaMode === 'questions'
+              className={`px-3 py-2 rounded-xl text-xs font-heading font-black flex items-center gap-1.5 transition ${ocaMode === 'questions'
                   ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow'
                   : 'text-slate-300 hover:text-white'
-              }`}
+                }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
               <span>Modo Preguntas</span>
@@ -571,11 +573,10 @@ export default function OcaScoutGame({
 
             <button
               onClick={() => setOcaMode('coordinator')}
-              className={`px-3 py-2 rounded-xl text-xs font-heading font-black flex items-center gap-1.5 transition ${
-                ocaMode === 'coordinator'
+              className={`px-3 py-2 rounded-xl text-xs font-heading font-black flex items-center gap-1.5 transition ${ocaMode === 'coordinator'
                   ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 shadow'
                   : 'text-slate-300 hover:text-white'
-              }`}
+                }`}
             >
               <ClipboardList className="w-3.5 h-3.5" />
               <span>Modo Actividades (Coordinador)</span>
@@ -714,11 +715,10 @@ export default function OcaScoutGame({
             return (
               <div
                 key={t.id}
-                className={`p-2.5 rounded-2xl border-2 transition-all flex items-center gap-2.5 ${
-                  isTurn
+                className={`p-2.5 rounded-2xl border-2 transition-all flex items-center gap-2.5 ${isTurn
                     ? 'bg-slate-900 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.35)] scale-[1.02]'
                     : 'bg-slate-950/85 border-slate-800 opacity-85'
-                }`}
+                  }`}
               >
                 <div
                   className="w-9 h-9 rounded-full flex items-center justify-center text-lg border-2 border-white shadow shrink-0"
@@ -884,7 +884,7 @@ export default function OcaScoutGame({
                     onClick={() => {
                       const nextAct =
                         coordinatorActivities[
-                          Math.floor(Math.random() * coordinatorActivities.length)
+                        Math.floor(Math.random() * coordinatorActivities.length)
                         ];
                       setPendingTurn(prev => ({ ...prev, activityText: nextAct }));
                     }}
@@ -962,8 +962,133 @@ export default function OcaScoutGame({
         </div>
       )}
 
+      {/* MOBILE / TABLET DEDICATED TRAIL VIEW (< 1024px) */}
+      <div className="lg:hidden space-y-3 mb-4">
+        {/* Mobile View Switcher */}
+        <div className="flex items-center justify-between gap-2 bg-slate-900 p-2 rounded-2xl border border-slate-800">
+          <button
+            onClick={() => setMobileBoardView('trail')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-heading font-black flex items-center justify-center gap-1.5 ${mobileBoardView === 'trail'
+                ? 'bg-sky-400 text-slate-950'
+                : 'text-slate-300'
+              }`}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Vista Celular (Sendero)</span>
+          </button>
+          <button
+            onClick={() => setMobileBoardView('spiral')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-heading font-black flex items-center justify-center gap-1.5 ${mobileBoardView === 'spiral'
+                ? 'bg-amber-400 text-slate-950'
+                : 'text-slate-300'
+              }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>Espiral 8×8 Completa</span>
+          </button>
+        </div>
+
+        {mobileBoardView === 'trail' && (
+          <div className="bg-gradient-to-br from-[#4e342e] to-[#271815] p-2.5 rounded-3xl border-2 border-[#a1887f]">
+            {/* Ring Filter Tabs for Mobile */}
+            <div className="grid grid-cols-4 gap-1 mb-2.5 bg-slate-950 p-1 rounded-xl">
+              {[
+                { id: 1, label: 'Tramo #1-28' },
+                { id: 2, label: 'Tramo #29-48' },
+                { id: 3, label: 'Final #49-63' },
+                { id: 0, label: 'Las 63' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveRingTab(tab.id)}
+                  className={`py-1.5 px-1 rounded-lg text-[10px] font-black transition ${activeRingTab === tab.id
+                      ? 'bg-amber-400 text-slate-950'
+                      : 'text-slate-300 hover:bg-slate-800'
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {OCA_63_TILES.filter(t => {
+                if (activeRingTab === 0) return true;
+                if (activeRingTab === 1) return t.id >= 1 && t.id <= 28;
+                if (activeRingTab === 2) return t.id >= 29 && t.id <= 48;
+                return t.id >= 49 && t.id <= 63;
+              }).map(tile => {
+                const teamsHere = teams.filter(t => t.pos === tile.id);
+                const isCurrentTeamHere = currentTeam.pos === tile.id;
+
+                let cardBg = 'bg-[#faf6e8] border-amber-800/40';
+                let headerStrip = 'bg-emerald-800 text-white';
+
+                if (tile.type === 'goal') {
+                  cardBg = 'bg-gradient-to-br from-amber-300 to-yellow-200 border-amber-500';
+                  headerStrip = 'bg-slate-950 text-amber-300';
+                } else if (tile.type === 'oca') {
+                  cardBg = 'bg-gradient-to-br from-orange-100 to-amber-200 border-orange-500';
+                  headerStrip = 'bg-orange-600 text-white';
+                } else if (tile.type === 'bridge' || tile.type === 'dice') {
+                  cardBg = 'bg-gradient-to-br from-cyan-100 to-sky-200 border-cyan-600';
+                  headerStrip = 'bg-cyan-700 text-white';
+                } else if (['hazard', 'labyrinth', 'skull'].includes(tile.type)) {
+                  cardBg = 'bg-gradient-to-br from-rose-100 to-red-200 border-rose-600';
+                  headerStrip = 'bg-rose-700 text-white';
+                }
+
+                return (
+                  <div
+                    key={tile.id}
+                    onClick={() => setSelectedTileId(tile.id)}
+                    className={`rounded-2xl overflow-hidden border-2 flex flex-col justify-between p-2 transition-all ${cardBg} ${isCurrentTeamHere ? 'ring-4 ring-amber-400 scale-[1.02]' : ''
+                      }`}
+                  >
+                    <div className={`-mx-2 -mt-2 mb-1.5 px-2.5 py-1 flex items-center justify-between text-[10px] font-black ${headerStrip}`}>
+                      <span className="font-mono">CASILLA #{tile.id}</span>
+                      <span>{tile.jump ? `➔ #${tile.jump}` : tile.backTo ? `↩ #${tile.backTo}` : '➔'}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 my-1">
+                      <span className="text-2xl">{tile.emoji}</span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-heading font-black leading-tight text-slate-900">
+                          {tile.name}
+                        </div>
+                        <div className="text-[10px] font-semibold text-slate-700 line-clamp-2">
+                          {tile.rule}
+                        </div>
+                      </div>
+                    </div>
+
+                    {teamsHere.length > 0 && (
+                      <div className="flex items-center gap-1 pt-1 mt-1 border-t border-black/10">
+                        <span className="text-[9px] font-bold text-slate-700">Fichas:</span>
+                        {teamsHere.map(t => (
+                          <span
+                            key={t.id}
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-xs border border-white shadow"
+                            style={{ backgroundColor: t.color }}
+                          >
+                            {t.emoji}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* AUTHENTIC 8x8 INWARD SPIRAL TABLETOP BOARD (ALL 63 TILES) */}
-      <div className="bg-gradient-to-br from-[#4e342e] via-[#3e2723] to-[#271815] p-2.5 sm:p-4 rounded-[2rem] border-4 border-[#a1887f] shadow-[0_20px_50px_rgba(0,0,0,0.85)] overflow-x-auto">
+      <div
+        className={`${mobileBoardView === 'spiral' ? 'block' : 'hidden lg:block'
+          } bg-gradient-to-br from-[#4e342e] via-[#3e2723] to-[#271815] p-2.5 sm:p-4 rounded-[2rem] border-4 border-[#a1887f] shadow-[0_20px_50px_rgba(0,0,0,0.85)] overflow-x-auto pb-16 md:pb-4`}
+      >
         <div className="min-w-[960px] bg-[#0e3627] p-3 rounded-3xl border-4 border-amber-400/50">
           {/* Spiral Legend Header */}
           <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-emerald-800/80 text-xs">
@@ -1007,19 +1132,19 @@ export default function OcaScoutGame({
                 tile.ring === 1
                   ? 'bg-[#faf6e8] border-amber-800/40'
                   : tile.ring === 2
-                  ? 'bg-[#f1f8e9] border-emerald-700/40'
-                  : tile.ring === 3
-                  ? 'bg-[#e0f2fe] border-sky-700/40'
-                  : 'bg-[#fef3c7] border-amber-600/50';
+                    ? 'bg-[#f1f8e9] border-emerald-700/40'
+                    : tile.ring === 3
+                      ? 'bg-[#e0f2fe] border-sky-700/40'
+                      : 'bg-[#fef3c7] border-amber-600/50';
 
               let headerStrip =
                 tile.ring === 1
                   ? 'bg-emerald-800 text-white'
                   : tile.ring === 2
-                  ? 'bg-teal-800 text-white'
-                  : tile.ring === 3
-                  ? 'bg-sky-800 text-white'
-                  : 'bg-amber-700 text-white';
+                    ? 'bg-teal-800 text-white'
+                    : tile.ring === 3
+                      ? 'bg-sky-800 text-white'
+                      : 'bg-amber-700 text-white';
 
               if (tile.type === 'goal') {
                 cardBg =
@@ -1045,13 +1170,12 @@ export default function OcaScoutGame({
                   key={tile.id}
                   style={gridStyle}
                   onClick={() => setSelectedTileId(tile.id)}
-                  className={`cursor-pointer relative rounded-xl overflow-hidden border-2 flex flex-col justify-between transition-all select-none shadow ${cardBg} ${
-                    isCurrentTeamHere
+                  className={`cursor-pointer relative rounded-xl overflow-hidden border-2 flex flex-col justify-between transition-all select-none shadow ${cardBg} ${isCurrentTeamHere
                       ? 'ring-4 ring-amber-400 scale-[1.04] z-20'
                       : isSelected
-                      ? 'ring-2 ring-cyan-400 z-10'
-                      : 'hover:brightness-105'
-                  }`}
+                        ? 'ring-2 ring-cyan-400 z-10'
+                        : 'hover:brightness-105'
+                    }`}
                 >
                   {/* Number & Spiral Direction Arrow Header */}
                   <div
