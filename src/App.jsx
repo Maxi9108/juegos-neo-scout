@@ -154,6 +154,8 @@ function MainApp() {
           <OcaScoutGame
             onBack={() => setActiveTab('portal')}
             activeContext={activeContext}
+            approvedQuestions={approvedQuestions}
+            onQuestionsRotated={(newList) => setApprovedQuestions(newList)}
           />
         )}
 

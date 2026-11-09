@@ -1,8 +1,25 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Dices, RotateCcw, Trophy, Users, Compass, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  ArrowLeft,
+  Dices,
+  RotateCcw,
+  Trophy,
+  Users,
+  Compass,
+  RefreshCw,
+  ClipboardList,
+  BookOpen,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  XCircle,
+  Sparkles
+} from 'lucide-react';
 import ScoutCharacter from '../characters/ScoutCharacter';
 import { sound } from '../../utils/audio';
 import { sheetService } from '../../services/sheetService';
+import { getMasterQuestionCatalog } from '../../data/defaultQuestions';
+import { CATEGORIES } from '../..//data/categories';
 import confetti from 'canvas-confetti';
 
 /**
@@ -20,13 +37,13 @@ const SPECIAL_TILES_MAP = {
   1: { name: 'SALIDA • Portada Scout', type: 'start', emoji: '🏕️', rule: 'Inicio de las 63 casillas hacia Brownsea' },
   6: { name: 'Puente de Mono', type: 'bridge', jump: 12, emoji: '🪢🌉', rule: '¡De puente a puente (al 12) y tiro por la corriente!' },
   12: { name: 'Puente Colgante', type: 'bridge', jump: 6, emoji: '🌉🪢', rule: '¡De puente a puente (al 6) y tiro por la corriente!' },
-  19: { name: 'Posada del Refugio', type: 'hazard', backTo: 15, emoji: '⛺💤', rule: 'Posada (Casilla 19): Reto de Patrulla o vuelves al 15' },
+  19: { name: 'Posada del Refugio', type: 'hazard', backTo: 15, emoji: '⛺💤', rule: 'Posada (#19): Si fallas vuelves atrás' },
   26: { name: 'Dados de B-P (26)', type: 'dice', jump: 53, emoji: '🎲✨', rule: '¡De dado a dado (al 53) y tiro porque me ha tocado!' },
-  31: { name: 'Pozo de Cantimplora', type: 'hazard', backTo: 24, emoji: '🪣💧', rule: 'Pozo (Casilla 31): Supera Reto Scout o vuelves al 24' },
-  42: { name: 'Laberinto del Bosque', type: 'labyrinth', backTo: 30, emoji: '🌲🧭', rule: '¡Del Laberinto (#42) al #30! (O salva con Reto Scout)' },
-  52: { name: 'Guardia de Ollas', type: 'hazard', backTo: 43, emoji: '🧹🍲', rule: 'Prisión de Ollas (#52): Reto Scout o vuelves al 43' },
+  31: { name: 'Pozo de Cantimplora', type: 'hazard', backTo: 24, emoji: '🪣💧', rule: 'Pozo (#31): Cuidado con perder el rumbo' },
+  42: { name: 'Laberinto del Bosque', type: 'labyrinth', backTo: 30, emoji: '🌲🧭', rule: '¡Del Laberinto (#42) al #30 si fallas!' },
+  52: { name: 'Guardia de Ollas', type: 'hazard', backTo: 43, emoji: '🧹🍲', rule: 'Guardia de Ollas (#52): Limpieza de intendencia' },
   53: { name: 'Dados de Mafeking (53)', type: 'dice', jump: 26, emoji: '🎲⚡', rule: '¡De dado a dado (al 26) y tiro porque me ha tocado!' },
-  58: { name: 'Tormenta / Calavera', type: 'skull', backTo: 1, emoji: '⛈️💀', rule: '¡Tormenta en #58! Vuelves a la #1 (o al #30 con Reto)' },
+  58: { name: 'Tormenta / Calavera', type: 'skull', backTo: 1, emoji: '⛈️💀', rule: '¡Calavera/Tormenta (#58)! Si fallas vuelves a la #1' },
   63: { name: '¡JARDÍN DE LA OCA • BROWNSEA 1907!', type: 'goal', emoji: '👑🪿🏕️', rule: '¡META CENTRAL #63! Victoria del Gran Tablero' }
 };
 
@@ -49,26 +66,36 @@ const SCOUT_PATH_THEMES = [
   { name: 'Canoa Rápida', emoji: '🛶' }
 ];
 
-// Compute exact (row, col, directionArrow, ringLevel) for each of the 63 tiles in an 8x8 inward spiral
+const DEFAULT_COORDINATOR_ACTIVITIES = [
+  'Armar un Nudo Llano y un Ballestrinque frente al coordinador en menos de 40 segundos.',
+  'Toda la patrulla debe cantar el estribillo de una canción de fogón scout con mímica.',
+  'Traer 3 elementos naturales del lugar (sin arrancar plantas vivas) y explicar su uso en campamento.',
+  'Hacer un vendaje improvisado de cabestrillo con una pañoleta y explicar cuándo se usa.',
+  'Decir el Lema de su Rama, hacer la Seña Scout y presentar el grito completo de la patrulla.',
+  'Representar en 30 segundos un artículo de la Ley Scout para que las demás patrullas lo adivinen.',
+  'Armar una camilla de emergencia con dos bordones/palos y dos camperas o pañoletas.',
+  'Responder la pregunta puntual que formule en voz alta el Coordinador de la Actividad.'
+];
+
 function buildSpiralCoordinates() {
   const coords = {};
 
   // Ring 1 (Outer perimeter: 1..28)
   for (let c = 1; c <= 8; c++) coords[c] = { row: 1, col: c, dir: c < 8 ? '➔' : '⬇', ring: 1 };
-  for (let r = 2; r <= 8; r++) coords[7 + r] = { row: r, col: 8, dir: r < 8 ? '⬇' : '⬅', ring: 1 }; // 9..15
-  for (let c = 7; c >= 1; c--) coords[15 + (8 - c)] = { row: 8, col: c, dir: c > 1 ? '⬅' : '⬆', ring: 1 }; // 16..22
-  for (let r = 7; r >= 2; r--) coords[22 + (8 - r)] = { row: r, col: 1, dir: r > 2 ? '⬆' : '➔', ring: 1 }; // 23..28
+  for (let r = 2; r <= 8; r++) coords[7 + r] = { row: r, col: 8, dir: r < 8 ? '⬇' : '⬅', ring: 1 };
+  for (let c = 7; c >= 1; c--) coords[15 + (8 - c)] = { row: 8, col: c, dir: c > 1 ? '⬅' : '⬆', ring: 1 };
+  for (let r = 7; r >= 2; r--) coords[22 + (8 - r)] = { row: r, col: 1, dir: r > 2 ? '⬆' : '➔', ring: 1 };
 
   // Ring 2 (29..48)
-  for (let c = 2; c <= 7; c++) coords[27 + c] = { row: 2, col: c, dir: c < 7 ? '➔' : '⬇', ring: 2 }; // 29..34
-  for (let r = 3; r <= 7; r++) coords[32 + r] = { row: r, col: 7, dir: r < 7 ? '⬇' : '⬅', ring: 2 }; // 35..39
-  for (let c = 6; c >= 2; c--) coords[39 + (7 - c)] = { row: 7, col: c, dir: c > 2 ? '⬅' : '⬆', ring: 2 }; // 40..44
-  for (let r = 6; r >= 3; r--) coords[44 + (7 - r)] = { row: r, col: 2, dir: r > 3 ? '⬆' : '➔', ring: 2 }; // 45..48
+  for (let c = 2; c <= 7; c++) coords[27 + c] = { row: 2, col: c, dir: c < 7 ? '➔' : '⬇', ring: 2 };
+  for (let r = 3; r <= 7; r++) coords[32 + r] = { row: r, col: 7, dir: r < 7 ? '⬇' : '⬅', ring: 2 };
+  for (let c = 6; c >= 2; c--) coords[39 + (7 - c)] = { row: 7, col: c, dir: c > 2 ? '⬅' : '⬆', ring: 2 };
+  for (let r = 6; r >= 3; r--) coords[44 + (7 - r)] = { row: r, col: 2, dir: r > 3 ? '⬆' : '➔', ring: 2 };
 
   // Ring 3 (49..60)
-  for (let c = 3; c <= 6; c++) coords[46 + c] = { row: 3, col: c, dir: c < 6 ? '➔' : '⬇', ring: 3 }; // 49..52
-  for (let r = 4; r <= 6; r++) coords[49 + r] = { row: r, col: 6, dir: r < 6 ? '⬇' : '⬅', ring: 3 }; // 53..55
-  for (let c = 5; c >= 3; c--) coords[55 + (6 - c)] = { row: 6, col: c, dir: c > 3 ? '⬅' : '⬆', ring: 3 }; // 56..58
+  for (let c = 3; c <= 6; c++) coords[46 + c] = { row: 3, col: c, dir: c < 6 ? '➔' : '⬇', ring: 3 };
+  for (let r = 4; r <= 6; r++) coords[49 + r] = { row: r, col: 6, dir: r < 6 ? '⬇' : '⬅', ring: 3 };
+  for (let c = 5; c >= 3; c--) coords[55 + (6 - c)] = { row: 6, col: c, dir: c > 3 ? '⬅' : '⬆', ring: 3 };
   coords[59] = { row: 5, col: 3, dir: '⬆', ring: 3 };
   coords[60] = { row: 4, col: 3, dir: '➔', ring: 3 };
 
@@ -82,12 +109,10 @@ function buildSpiralCoordinates() {
 
 const SPIRAL_COORDS = buildSpiralCoordinates();
 
-// Build all 63 tiles with official Oca rules
 const OCA_63_TILES = Array.from({ length: 63 }, (_, idx) => {
   const id = idx + 1;
   const coord = SPIRAL_COORDS[id];
 
-  // Check if it is one of the 13 traditional Oca spaces
   const ocaIdx = CLASSIC_OCA_NUMBERS.indexOf(id);
   if (ocaIdx !== -1) {
     const nextOca = ocaIdx < CLASSIC_OCA_NUMBERS.length - 1 ? CLASSIC_OCA_NUMBERS[ocaIdx + 1] : 63;
@@ -102,7 +127,6 @@ const OCA_63_TILES = Array.from({ length: 63 }, (_, idx) => {
     };
   }
 
-  // Check if it's a special classic space (Puente, Posada, Dados, Pozo, Laberinto, Guardia, Calavera, Meta)
   if (SPECIAL_TILES_MAP[id]) {
     return {
       id,
@@ -111,51 +135,16 @@ const OCA_63_TILES = Array.from({ length: 63 }, (_, idx) => {
     };
   }
 
-  // Otherwise normal Scout trail tile (every 8th normal tile has a bonus patrol challenge)
   const theme = SCOUT_PATH_THEMES[id % SCOUT_PATH_THEMES.length];
-  const isBonusChallenge = id % 10 === 0;
   return {
     id,
-    name: isBonusChallenge ? `Posta: ${theme.name}` : theme.name,
-    type: isBonusChallenge ? 'challenge' : 'normal',
-    emoji: isBonusChallenge ? '⚜️' : theme.emoji,
-    rule: isBonusChallenge
-      ? 'Posta de Patrulla: Responde o haz prenda para avanzar +3 casillas'
-      : `Sendero hacia Brownsea (#${id})`,
+    name: theme.name,
+    type: 'normal',
+    emoji: theme.emoji,
+    rule: `Responde bien o cumple la actividad para confirmar la casilla #${id}`,
     ...coord
   };
 });
-
-const YOUTH_TABLE_CHALLENGES = [
-  {
-    title: '¡Desafío de Cabuyería!',
-    prompt: '¿Qué nudo se utiliza para unir dos cuerdas del mismo grosor y termina plano?',
-    options: ['Nudo Llano (o Rizo)', 'Margarita', 'Ballestrinque'],
-    correct: 0,
-    physicalTask: 'O que toda la patrulla haga el Saludo Scout al unísono gritando "¡Siempre Listo!"'
-  },
-  {
-    title: '¡Desafío de Orientación!',
-    prompt: 'Si miras hacia donde sale el Sol por la mañana (Este), ¿qué punto cardinal queda a tu izquierda?',
-    options: ['Norte', 'Sur', 'Oeste'],
-    correct: 0,
-    physicalTask: 'O nombrar en voz alta 3 elementos del botiquín de primeros auxilios.'
-  },
-  {
-    title: '¡Reto de Fogón Scout!',
-    prompt: '¿Cuáles son los 3 componentes del Triángulo del Fuego?',
-    options: ['Oxígeno, Calor y Combustible', 'Leña, Piedras y Agua', 'Viento, Humo y Ceniza'],
-    correct: 0,
-    physicalTask: 'O cantar el estribillo de una canción de campamento entre toda la patrulla.'
-  },
-  {
-    title: '¡Reto de Historia Scout!',
-    prompt: '¿En qué isla realizó Baden-Powell el primer campamento scout en agosto de 1907?',
-    options: ['Isla de Brownsea', 'Isla de Man', 'Isla de Skye'],
-    correct: 0,
-    physicalTask: 'O decir el grito de patrulla con máxima energía frente al grupo.'
-  }
-];
 
 const INITIAL_TEAMS = [
   { id: 0, name: 'Patrulla Halcones', emoji: '🦅', color: '#F59E0B', pos: 1 },
@@ -196,22 +185,136 @@ function Die3D({ value, isRolling }) {
   );
 }
 
-export default function OcaScoutGame({ onBack, activeContext = {} }) {
+export default function OcaScoutGame({
+  onBack,
+  activeContext = {},
+  approvedQuestions = [],
+  onQuestionsRotated
+}) {
   const [teams, setTeams] = useState(INITIAL_TEAMS);
   const [turn, setTurn] = useState(0);
   const [die, setDie] = useState(5);
   const [isRolling, setIsRolling] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+
+  // Game Mode: 'questions' (Banco de preguntas rotativo) | 'coordinator' (Actividades de campamento/evento dadas por el coordinador)
+  const [ocaMode, setOcaMode] = useState('questions');
+
+  // Dynamic rotating question pool
+  const [questionPool, setQuestionPool] = useState(() => {
+    const active = sheetService.getActivePlayableQuestions(activeContext.rama || 'todas');
+    return active.length > 0 ? active : getMasterQuestionCatalog();
+  });
+  const [usedQuestionIds, setUsedQuestionIds] = useState([]);
+  const [rotationNotice, setRotationNotice] = useState('');
+
+  // Coordinator custom activities list (persisted in localStorage)
+  const [coordinatorActivities, setCoordinatorActivities] = useState(() => {
+    try {
+      const saved = localStorage.getItem('neofaro_oca_coordinator_activities');
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_COORDINATOR_ACTIVITIES;
+    } catch {
+      return DEFAULT_COORDINATOR_ACTIVITIES;
+    }
+  });
+  const [newActivityText, setNewActivityText] = useState('');
+  const [customLivePrompt, setCustomLivePrompt] = useState('');
+  const [showCoordinatorConfig, setShowCoordinatorConfig] = useState(false);
+
+  // Pending turn verification state:
+  // { prevPos, targetPos, roll, tile, questionObj, activityText, answeredChoice, isCorrect }
+  const [pendingTurn, setPendingTurn] = useState(null);
+
   const [logMsg, setLogMsg] = useState(
-    '¡Tablero en Espiral de 63 Casillas listo! Lanza el dado para recorrer las Ocas hasta el Jardín Central (#63).'
+    '¡Tira el dado! Para confirmar la casilla deberás responder la pregunta o cumplir la actividad del coordinador. Si le erras, vuelves atrás.'
   );
-  const [activeChallenge, setActiveChallenge] = useState(null);
   const [selectedTileId, setSelectedTileId] = useState(1);
   const [winner, setWinner] = useState(null);
   const [editingTeams, setEditingTeams] = useState(false);
 
+  useEffect(() => {
+    const active = sheetService.getActivePlayableQuestions(activeContext.rama || 'todas');
+    if (active && active.length > 0) {
+      setQuestionPool(active);
+    }
+  }, [approvedQuestions, activeContext.rama]);
+
   const currentTeam = teams[turn];
   const inspectedTile = OCA_63_TILES.find(t => t.id === selectedTileId) || OCA_63_TILES[0];
+
+  const saveCoordinatorList = (list) => {
+    setCoordinatorActivities(list);
+    try {
+      localStorage.setItem('neofaro_oca_coordinator_activities', JSON.stringify(list));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleAddCoordinatorActivity = (e) => {
+    e.preventDefault();
+    const trimmed = newActivityText.trim();
+    if (!trimmed) return;
+    const updated = [trimmed, ...coordinatorActivities];
+    saveCoordinatorList(updated);
+    setNewActivityText('');
+    sound.playCorrect();
+  };
+
+  const handleRemoveCoordinatorActivity = (idxToRemove) => {
+    if (coordinatorActivities.length <= 1) return;
+    const updated = coordinatorActivities.filter((_, i) => i !== idxToRemove);
+    saveCoordinatorList(updated);
+  };
+
+  // Manual or weekly question rotation right inside Oca Scout
+  const handleRotateQuestionsNow = () => {
+    const res = sheetService.rotateQuestionsNow();
+    setQuestionPool(res.questions);
+    setUsedQuestionIds([]);
+    if (onQuestionsRotated) onQuestionsRotated(res.questions);
+    sound.playBadgeEarned();
+    setRotationNotice(`🔄 ¡Banco de ${res.questions.length} preguntas rotado y actualizado!`);
+    setTimeout(() => setRotationNotice(''), 3500);
+  };
+
+  // Pick next question from rotating pool and shuffle its 4 options
+  const drawNextQuestion = () => {
+    const source = questionPool.length > 0 ? questionPool : getMasterQuestionCatalog();
+    let available = source.filter(q => !usedQuestionIds.includes(q.id));
+    if (available.length === 0) {
+      available = source;
+      setUsedQuestionIds([]);
+    }
+    const chosen = available[Math.floor(Math.random() * available.length)];
+    setUsedQuestionIds(prev => [...prev, chosen.id]);
+
+    const rawOpts = [
+      { text: chosen.opcionA, isCorrect: chosen.correcta === 'A' },
+      { text: chosen.opcionB, isCorrect: chosen.correcta === 'B' },
+      { text: chosen.opcionC, isCorrect: chosen.correcta === 'C' },
+      { text: chosen.opcionD, isCorrect: chosen.correcta === 'D' }
+    ].filter(o => o.text);
+
+    // Shuffle options so the correct answer is in a random position
+    for (let i = rawOpts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [rawOpts[i], rawOpts[j]] = [rawOpts[j], rawOpts[i]];
+    }
+
+    const catMeta = CATEGORIES.find(c => c.id === chosen.categoria) || {
+      name: 'Conocimiento Scout',
+      color: '#F59E0B'
+    };
+
+    return {
+      ...chosen,
+      categoryName: catMeta.name,
+      categoryColor: catMeta.color,
+      shuffledOptions: rawOpts
+    };
+  };
 
   const animateSteps = (startPos, targetPos, onDone) => {
     setIsMoving(true);
@@ -229,13 +332,15 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
       sound.playTick();
       setSelectedTileId(curr);
       setTeams(prev => prev.map((t, i) => (i === turn ? { ...t, pos: curr } : t)));
-    }, 155);
+    }, 150);
   };
 
   const handleRoll = () => {
-    if (isRolling || isMoving || activeChallenge || winner) return;
+    if (isRolling || isMoving || pendingTurn || winner) return;
     setIsRolling(true);
     sound.playTick();
+
+    const startPos = currentTeam.pos;
 
     setTimeout(() => {
       const roll = Math.floor(Math.random() * 6) + 1;
@@ -243,13 +348,36 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
       setIsRolling(false);
 
       const goalPos = 63;
-      let target = currentTeam.pos + roll;
+      let target = startPos + roll;
       if (target > goalPos) {
         target = goalPos - (target - goalPos); // classic Oca bounce-back from #63
       }
 
-      animateSteps(currentTeam.pos, target, landedPos => {
-        evaluateLandedTile(landedPos, roll);
+      animateSteps(startPos, target, landedPos => {
+        const landedTile = OCA_63_TILES.find(t => t.id === landedPos) || OCA_63_TILES[0];
+        setSelectedTileId(landedPos);
+
+        const qObj = drawNextQuestion();
+        const actText =
+          coordinatorActivities[Math.floor(Math.random() * coordinatorActivities.length)] ||
+          DEFAULT_COORDINATOR_ACTIVITIES[0];
+
+        setPendingTurn({
+          prevPos: startPos,
+          targetPos: landedPos,
+          roll,
+          tile: landedTile,
+          questionObj: qObj,
+          activityText: actText,
+          answeredChoice: null,
+          isResolved: false
+        });
+
+        setLogMsg(
+          ocaMode === 'questions'
+            ? `🎲 ${currentTeam.name} avanzó a la casilla #${landedPos} (${landedTile.name}). ¡Responde correctamente para quedarte o volverás atrás a la #${startPos}!`
+            : `🏕️ ${currentTeam.name} llegó a la casilla #${landedPos} (${landedTile.name}). ¡Cumple la actividad del Coordinador para avanzar!`
+        );
       });
     }, 500);
   };
@@ -257,7 +385,7 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
   const declareVictory = (winningTeam) => {
     setWinner(winningTeam);
     setLogMsg(
-      `🏆 ¡${winningTeam.name} llegó al Gran Jardín de la Oca (#63 Isla de Brownsea 1907) y ganó la partida!`
+      `🏆 ¡${winningTeam.name} respondió correctamente en el Gran Jardín de la Oca (#63 Brownsea 1907) y ganó la partida!`
     );
     sound.playVictory();
     confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
@@ -274,22 +402,46 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
     });
   };
 
-  const evaluateLandedTile = (pos, roll) => {
-    const landed = OCA_63_TILES.find(t => t.id === pos) || OCA_63_TILES[0];
-    setSelectedTileId(pos);
-    let msg = `${currentTeam.emoji} ${currentTeam.name} sacó un ${roll} y cayó en la casilla #${pos} (${landed.name}).`;
+  // Resolve whether the patrol succeeded (correct answer / coordinator approved) or failed (goes back!)
+  const resolveTurnOutcome = (isSuccess) => {
+    if (!pendingTurn) return;
+    const { prevPos, targetPos, tile } = pendingTurn;
 
-    // Goal #63
-    if (landed.type === 'goal') {
+    if (!isSuccess) {
+      // FAILED -> MUST GO BACK! ("Si le erra a la pregunta debe volver atrás")
+      sound.playWrong();
+      // If landed on Skull/Labyrinth/Hazard, go back to whichever is further back (prevPos or tile.backTo)
+      const fallbackPos = tile.backTo ? Math.min(prevPos, tile.backTo) : prevPos;
+
+      setTeams(prev => prev.map((t, i) => (i === turn ? { ...t, pos: fallbackPos } : t)));
+      setSelectedTileId(fallbackPos);
+      setLogMsg(
+        `❌ ¡Respuesta incorrecta / Actividad no superada! ${currentTeam.emoji} ${currentTeam.name} vuelve atrás a la casilla #${fallbackPos}.`
+      );
+      setPendingTurn(null);
+      setCustomLivePrompt('');
+      setTurn((turn + 1) % teams.length);
+      return;
+    }
+
+    // SUCCESS -> Confirm advance & trigger special tile effects!
+    sound.playCorrect();
+
+    if (tile.type === 'goal') {
+      setPendingTurn(null);
+      setCustomLivePrompt('');
       declareVictory(currentTeam);
       return;
     }
 
-    // Oca (5, 9, 14, 18, 23, 27, 32, 36, 41, 45, 50, 54, 59) or Bridge (6, 12) or Dice (26, 53)
-    if (landed.type === 'oca' || landed.type === 'bridge' || landed.type === 'dice') {
+    if (tile.type === 'oca' || tile.type === 'bridge' || tile.type === 'dice') {
       sound.playBadgeEarned();
-      const jumpTarget = landed.jump;
-      setLogMsg(`${msg} ${landed.rule}`);
+      const jumpTarget = tile.jump;
+      setLogMsg(
+        `✅ ¡Correcto! Además caíste en ${tile.name}: ${tile.rule} (Avanzas a la #${jumpTarget} y tiras de nuevo).`
+      );
+      setPendingTurn(null);
+      setCustomLivePrompt('');
 
       setTimeout(() => {
         setTeams(prev => prev.map((t, i) => (i === turn ? { ...t, pos: jumpTarget } : t)));
@@ -297,83 +449,31 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
         if (jumpTarget === 63) {
           declareVictory(currentTeam);
         }
-      }, 450);
-      // Player keeps turn ("y tiro porque me toca!")
+      }, 400);
+      // Keep turn because Oca / Bridge / Dice grants an extra roll!
       return;
     }
 
-    // Hazard / Labyrinth / Skull -> Offer Youth Table Challenge to save!
-    if (landed.type === 'hazard' || landed.type === 'labyrinth' || landed.type === 'skull') {
-      sound.playWrong();
-      const ch = YOUTH_TABLE_CHALLENGES[Math.floor(Math.random() * YOUTH_TABLE_CHALLENGES.length)];
-      setActiveChallenge({
-        tile: landed,
-        challengeData: ch,
-        mode: 'save'
-      });
-      setLogMsg(`${msg} ${landed.rule}`);
-      return;
-    }
-
-    // Bonus Challenge tile (#10, #20, #30, #40, #50, #60)
-    if (landed.type === 'challenge') {
-      sound.playTick();
-      const ch = YOUTH_TABLE_CHALLENGES[Math.floor(Math.random() * YOUTH_TABLE_CHALLENGES.length)];
-      setActiveChallenge({
-        tile: landed,
-        challengeData: ch,
-        mode: 'boost'
-      });
-      setLogMsg(`${msg} ¡Posta de Patrulla por +3 casillas extra!`);
-      return;
-    }
-
-    // Normal tile
-    sound.playCorrect();
-    setLogMsg(msg);
+    // Normal or survived hazard tile
+    setLogMsg(
+      `✅ ¡Excelente! ${currentTeam.emoji} ${currentTeam.name} confirma su avance en la casilla #${targetPos} (${tile.name}).`
+    );
+    setPendingTurn(null);
+    setCustomLivePrompt('');
     setTurn((turn + 1) % teams.length);
   };
 
-  const handleResolveChallenge = (success) => {
-    if (!activeChallenge) return;
-    const { tile, mode } = activeChallenge;
+  const handleSelectQuestionOption = (opt, idx) => {
+    if (!pendingTurn || pendingTurn.isResolved) return;
+    setPendingTurn(prev => ({
+      ...prev,
+      answeredChoice: idx,
+      isResolved: true
+    }));
 
-    if (mode === 'save') {
-      if (success) {
-        sound.playCorrect();
-        const safePos = tile.type === 'skull' ? 30 : tile.id;
-        setTeams(prev => prev.map((t, i) => (i === turn ? { ...t, pos: safePos } : t)));
-        setLogMsg(
-          tile.type === 'skull'
-            ? `⚜️ ¡Gran salvada de patrulla! En vez de volver a la #1, ${currentTeam.name} acampa en la #30.`
-            : `⚜️ ¡Reto superado! ${currentTeam.name} mantiene su posición en la casilla #${tile.id}.`
-        );
-      } else {
-        sound.playWrong();
-        setTeams(prev => prev.map((t, i) => (i === turn ? { ...t, pos: tile.backTo } : t)));
-        setSelectedTileId(tile.backTo);
-        setLogMsg(`${currentTeam.name} retrocede a la casilla #${tile.backTo} (${tile.name}).`);
-      }
-    } else {
-      if (success) {
-        sound.playBadgeEarned();
-        const boosted = Math.min(63, currentTeam.pos + 3);
-        setTeams(prev => prev.map((t, i) => (i === turn ? { ...t, pos: boosted } : t)));
-        setSelectedTileId(boosted);
-        setLogMsg(`🚀 ¡Reto cumplido! ${currentTeam.name} avanza +3 hasta la casilla #${boosted}.`);
-        if (boosted === 63) {
-          setActiveChallenge(null);
-          declareVictory(currentTeam);
-          return;
-        }
-      } else {
-        sound.playTick();
-        setLogMsg(`${currentTeam.name} permanece en la casilla #${tile.id}.`);
-      }
-    }
-
-    setActiveChallenge(null);
-    setTurn((turn + 1) % teams.length);
+    setTimeout(() => {
+      resolveTurnOutcome(opt.isCorrect);
+    }, 850);
   };
 
   const resetGame = () => {
@@ -381,14 +481,14 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
     setTurn(0);
     setSelectedTileId(1);
     setWinner(null);
-    setActiveChallenge(null);
+    setPendingTurn(null);
     setLogMsg('¡Tablero en Espiral de 63 Casillas reiniciado! Todas las patrullas en la Salida (#1).');
   };
 
   return (
     <div className="w-full max-w-[1440px] mx-auto p-1.5 sm:p-3 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#08203e] via-[#09152b] to-[#241606] border-2 border-sky-500/50 rounded-3xl p-3.5 sm:p-5 mb-4 flex flex-col lg:flex-row items-center justify-between gap-4 card-3d">
+      {/* Top Header + Mode Switcher + Question Rotation Button */}
+      <div className="bg-gradient-to-r from-[#08203e] via-[#09152b] to-[#241606] border-2 border-sky-500/50 rounded-3xl p-3.5 sm:p-5 mb-4 flex flex-col xl:flex-row items-center justify-between gap-4 card-3d">
         <div className="flex items-center gap-3.5">
           {onBack && (
             <button
@@ -402,34 +502,146 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
           <ScoutCharacter categoryId="oca" reaction={winner ? 'celebrate' : 'happy'} size="sm" hideLabel />
           <div>
             <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/40">
-              🪿🎲 TABLERO OFICIAL COMPLETO EN ESPIRAL • 63 CASILLAS CLÁSICAS
+              🪿🎲 TABLERO EN ESPIRAL DE 63 CASILLAS • PREGUNTAS ACTUALIZABLES + MODO CAMPAMENTO
             </span>
             <h1 className="text-lg sm:text-2xl font-heading font-black text-white mt-0.5">
-              Gran Tablero del Juego de la Oca Scout • 63 Casillas en Espiral
+              Juego de la Oca Scout • 63 Casillas con Preguntas y Actividades
             </h1>
             <p className="text-xs text-slate-300">
-              Con las 13 Ocas oficiales (5, 9, 14, 18, 23, 27, 32, 36, 41, 45, 50, 54, 59), Puentes (6 y 12), Posada (19), Dados (26 y 53), Pozo (31), Laberinto (42), Guardia (52), Calavera (58) y el Jardín Central (#63).
+              Si aciertas la pregunta o actividad del coordinador confirmas tu casilla; <strong>si le erras, vuelves atrás</strong>.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Mode Selector & Action Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {/* Switch Mode: Questions vs Coordinator Activities */}
+          <div className="flex bg-slate-950 p-1 rounded-2xl border border-slate-700">
+            <button
+              onClick={() => setOcaMode('questions')}
+              className={`px-3 py-2 rounded-xl text-xs font-heading font-black flex items-center gap-1.5 transition ${
+                ocaMode === 'questions'
+                  ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Modo Preguntas</span>
+            </button>
+
+            <button
+              onClick={() => setOcaMode('coordinator')}
+              className={`px-3 py-2 rounded-xl text-xs font-heading font-black flex items-center gap-1.5 transition ${
+                ocaMode === 'coordinator'
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              <span>Modo Actividades (Coordinador)</span>
+            </button>
+          </div>
+
+          {ocaMode === 'questions' ? (
+            <button
+              onClick={handleRotateQuestionsNow}
+              className="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 border border-emerald-500/40 font-black text-xs flex items-center gap-1.5 transition"
+              title="Rotar el orden y selección de preguntas"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Rotar Preguntas</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowCoordinatorConfig(!showCoordinatorConfig)}
+              className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 font-black text-xs flex items-center gap-1.5 transition"
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              <span>{showCoordinatorConfig ? 'Cerrar Lista Coordinador' : 'Cargar Actividades del Evento'}</span>
+            </button>
+          )}
+
           <button
             onClick={() => setEditingTeams(!editingTeams)}
             className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 font-bold text-xs flex items-center gap-1.5"
           >
-            <Users className="w-4 h-4" />
-            <span>{editingTeams ? 'Cerrar Nombres' : 'Editar Patrullas'}</span>
+            <Users className="w-3.5 h-3.5" />
+            <span>Patrullas</span>
           </button>
+
           <button
             onClick={resetGame}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+            title="Reiniciar tablero"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Reiniciar 63 Casillas</span>
           </button>
         </div>
       </div>
+
+      {rotationNotice && (
+        <div className="mb-3 p-3 rounded-2xl bg-emerald-950/90 border border-emerald-400 text-emerald-200 text-xs font-black text-center animate-in fade-in">
+          {rotationNotice}
+        </div>
+      )}
+
+      {/* COORDINATOR ACTIVITIES MANAGER PANEL (For Camp / Group Events) */}
+      {showCoordinatorConfig && (
+        <div className="bg-slate-900/95 border-2 border-amber-500/50 rounded-3xl p-4 sm:p-5 mb-4 card-3d animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <div>
+              <span className="text-[10px] font-black uppercase text-amber-400">
+                🏕️ PANEL DEL COORDINADOR DE ACTIVIDAD / CAMPAMENTO
+              </span>
+              <h3 className="text-base sm:text-lg font-heading font-black text-white">
+                Actividades y Pruebas para el Evento del Grupo ({coordinatorActivities.length})
+              </h3>
+              <p className="text-xs text-slate-300">
+                Agrega aquí las actividades, prendas o desafíos que las patrullas deberán cumplir o responder para avanzar en el tablero.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleAddCoordinatorActivity} className="flex flex-col sm:flex-row gap-2 mb-3">
+            <input
+              type="text"
+              value={newActivityText}
+              onChange={e => setNewActivityText(e.target.value)}
+              placeholder="Escribe una actividad para el campamento o evento (ej: Traer leña fina, hacer nudo as de guía...)"
+              className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 outline-none"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-heading font-black text-xs flex items-center justify-center gap-1.5 shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Agregar Actividad</span>
+            </button>
+          </form>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+            {coordinatorActivities.map((act, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200"
+              >
+                <span>
+                  <strong className="text-amber-400">#{idx + 1}:</strong> {act}
+                </span>
+                {coordinatorActivities.length > 1 && (
+                  <button
+                    onClick={() => handleRemoveCoordinatorActivity(idx)}
+                    className="text-slate-500 hover:text-rose-400 shrink-0"
+                    title="Eliminar actividad"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Team Name Editor */}
       {editingTeams && (
@@ -503,7 +715,7 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
 
           <button
             onClick={handleRoll}
-            disabled={isRolling || isMoving || !!activeChallenge || !!winner}
+            disabled={isRolling || isMoving || !!pendingTurn || !!winner}
             className="px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 text-slate-950 font-heading font-black text-xs flex items-center gap-1.5 shrink-0 btn-3d disabled:opacity-50"
           >
             <Dices className="w-4 h-4" />
@@ -515,7 +727,7 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
         <div className="lg:col-span-3 bg-[#fcfaf2] text-slate-900 border-2 border-amber-500 rounded-2xl p-3 shadow-lg">
           <div className="flex items-center justify-between text-[10px] font-black uppercase text-amber-800">
             <span>CASILLA #{inspectedTile.id} DE 63</span>
-            <span>Anillo #{inspectedTile.ring}</span>
+            <span>{ocaMode === 'questions' ? '📚 Modo Preguntas' : '🏕️ Modo Coordinador'}</span>
           </div>
           <div className="text-xs sm:text-sm font-heading font-black text-slate-950 flex items-center gap-1.5 mt-0.5">
             <span className="text-lg">{inspectedTile.emoji}</span>
@@ -527,44 +739,164 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
         </div>
       </div>
 
-      {/* Youth Interactive Challenge Modal */}
-      {activeChallenge && (
-        <div className="mb-4 bg-gradient-to-r from-amber-950/95 via-slate-900 to-cyan-950/95 border-2 border-amber-400 rounded-3xl p-4 sm:p-5 shadow-2xl animate-in zoom-in-95">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-amber-400 text-slate-950">
-                ⚜️ PRENDA / RETO DE MESA EN CASILLA #{activeChallenge.tile.id} ({activeChallenge.tile.name})
+      {/* ACTIVE TURN VERIFICATION MODAL: QUESTION OR COORDINATOR ACTIVITY */}
+      {pendingTurn && (
+        <div className="mb-5 bg-gradient-to-r from-[#0c1f3d] via-slate-900 to-[#1e130a] border-4 border-amber-400 rounded-3xl p-5 shadow-[0_15px_40px_rgba(0,0,0,0.85)] animate-in zoom-in-95">
+          {/* Header of the Modal */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-700">
+            <div className="flex items-center gap-2">
+              <span
+                className="px-3 py-1 rounded-full text-xs font-black text-slate-950"
+                style={{ backgroundColor: currentTeam.color }}
+              >
+                {currentTeam.emoji} {currentTeam.name}
               </span>
-              <h3 className="text-base sm:text-lg font-heading font-black text-white mt-2">
-                {activeChallenge.challengeData.title}
-              </h3>
-              <p className="text-xs sm:text-sm text-amber-200 font-bold mt-1">
-                Opción A (Pregunta): {activeChallenge.challengeData.prompt}
-              </p>
-              <p className="text-xs text-cyan-300 mt-1">
-                🎉 Opción B (Prenda Grupal en Vivo): {activeChallenge.challengeData.physicalTask}
-              </p>
+              <span className="text-xs font-black uppercase text-amber-300">
+                Casilla #{pendingTurn.targetPos} ({pendingTurn.tile.emoji} {pendingTurn.tile.name})
+              </span>
             </div>
 
-            <button
-              onClick={() => handleResolveChallenge(true)}
-              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-heading font-black text-xs shrink-0 btn-3d"
-            >
-              ✅ ¡Cumplimos la Prenda Grupal!
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-rose-300 bg-rose-950/80 px-3 py-1 rounded-full border border-rose-500/40">
+                ⚠️ Si le erras vuelves atrás a la casilla #{pendingTurn.prevPos}
+              </span>
+              {/* Quick toggle inside the turn if the coordinator wants to switch on the fly */}
+              <button
+                onClick={() =>
+                  setOcaMode(ocaMode === 'questions' ? 'coordinator' : 'questions')
+                }
+                className="text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30"
+              >
+                {ocaMode === 'questions'
+                  ? 'Cambiar a Actividad del Coordinador'
+                  : 'Cambiar a Pregunta de Pantalla'}
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-            {activeChallenge.challengeData.options.map((opt, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleResolveChallenge(idx === activeChallenge.challengeData.correct)}
-                className="p-2.5 rounded-xl bg-slate-950 hover:bg-amber-400 hover:text-slate-950 text-white font-bold text-xs border border-slate-700 transition text-left"
-              >
-                {String.fromCharCode(65 + idx)}) {opt}
-              </button>
-            ))}
-          </div>
+          {ocaMode === 'questions' ? (
+            /* MODE 1: ROTATING SCOUT QUESTION */
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span
+                  className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full text-slate-950"
+                  style={{ backgroundColor: pendingTurn.questionObj.categoryColor }}
+                >
+                  {pendingTurn.questionObj.categoryName}
+                </span>
+                <span className="text-[11px] text-slate-400 font-semibold">
+                  Banco Rotativo de Preguntas Scout
+                </span>
+              </div>
+
+              <h3 className="text-base sm:text-xl font-heading font-black text-white mb-4">
+                {pendingTurn.questionObj.pregunta}
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {pendingTurn.questionObj.shuffledOptions.map((opt, idx) => {
+                  const isChosen = pendingTurn.answeredChoice === idx;
+                  let btnStyle =
+                    'bg-slate-950 hover:bg-slate-800 text-white border-slate-700 hover:border-amber-400';
+
+                  if (pendingTurn.isResolved) {
+                    if (opt.isCorrect) {
+                      btnStyle = 'bg-emerald-600 text-white border-emerald-300 scale-[1.01]';
+                    } else if (isChosen && !opt.isCorrect) {
+                      btnStyle = 'bg-rose-600 text-white border-rose-300';
+                    } else {
+                      btnStyle = 'bg-slate-950/50 text-slate-500 border-slate-800';
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={idx}
+                      disabled={pendingTurn.isResolved}
+                      onClick={() => handleSelectQuestionOption(opt, idx)}
+                      className={`p-3.5 rounded-2xl border-2 text-left font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 ${btnStyle}`}
+                    >
+                      <span>
+                        <strong className="text-amber-400 mr-1.5">
+                          {String.fromCharCode(65 + idx)})
+                        </strong>{' '}
+                        {opt.text}
+                      </span>
+                      {pendingTurn.isResolved && opt.isCorrect && (
+                        <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
+                      )}
+                      {pendingTurn.isResolved && isChosen && !opt.isCorrect && (
+                        <XCircle className="w-5 h-5 text-white shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* MODE 2: COORDINATOR CAMP / GROUP EVENT ACTIVITY */
+            <div className="space-y-4">
+              <div className="bg-slate-950/90 border-2 border-amber-500/40 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-black uppercase text-amber-400">
+                    🏕️ ACTIVIDAD / CONSIGNA DADA POR EL COORDINADOR DEL EVENTO
+                  </span>
+                  <button
+                    onClick={() => {
+                      const nextAct =
+                        coordinatorActivities[
+                          Math.floor(Math.random() * coordinatorActivities.length)
+                        ];
+                      setPendingTurn(prev => ({ ...prev, activityText: nextAct }));
+                    }}
+                    className="text-[10px] font-bold text-cyan-300 hover:underline"
+                  >
+                    🎲 Sortear otra actividad de la lista
+                  </button>
+                </div>
+
+                <p className="text-base sm:text-lg font-heading font-black text-white">
+                  {customLivePrompt.trim() ? customLivePrompt : pendingTurn.activityText}
+                </p>
+
+                <div className="mt-3 pt-3 border-t border-slate-800">
+                  <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                    ¿El Coordinador quiere dictar o escribir una consigna puntual ahora mismo? (Opcional):
+                  </label>
+                  <input
+                    type="text"
+                    value={customLivePrompt}
+                    onChange={e => setCustomLivePrompt(e.target.value)}
+                    placeholder="Escribe aquí la pregunta o actividad puntual del Coordinador para esta tirada..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-amber-200 font-bold outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              {/* Coordinator Decision Buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  onClick={() => resolveTurnOutcome(true)}
+                  className="w-full sm:flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-heading font-black text-sm flex items-center justify-center gap-2 btn-3d"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>
+                    ✅ ¡Cumplió / Respondió Correctamente! (Avanza en Casilla #{pendingTurn.targetPos})
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => resolveTurnOutcome(false)}
+                  className="w-full sm:flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-rose-600 to-red-500 text-white font-heading font-black text-sm flex items-center justify-center gap-2 btn-3d"
+                >
+                  <XCircle className="w-5 h-5" />
+                  <span>
+                    ❌ Le erró / No cumplió (Vuelve atrás a Casilla #{pendingTurn.prevPos})
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -598,7 +930,9 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
           <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-emerald-800/80 text-xs">
             <div className="flex items-center gap-2 font-heading font-black text-amber-300">
               <Compass className="w-4 h-4" />
-              <span>RECORRIDO EN ESPIRAL HACIA EL CENTRO: CASILLA #1 (ARRIBA IZQUIERDA) ➔ CASILLA #63 (CENTRO)</span>
+              <span>
+                RECORRIDO EN ESPIRAL HACIA EL CENTRO: CASILLA #1 (ARRIBA IZQUIERDA) ➔ CASILLA #63 (CENTRO)
+              </span>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold">
               <span className="px-2 py-0.5 rounded-full bg-orange-500/30 text-orange-200 border border-orange-400/40">
@@ -608,7 +942,7 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
                 🌉 Puentes (6 y 12) • 🎲 Dados (26 y 53)
               </span>
               <span className="px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200 border border-rose-400/40">
-                ⛺ Posada (19) • 🪣 Pozo (31) • 🌲 Laberinto (42) • 💀 Calavera (58)
+                ❌ Si le erras a la pregunta vuelves atrás
               </span>
             </div>
           </div>
@@ -630,7 +964,6 @@ export default function OcaScoutGame({ onBack, activeContext = {} }) {
                 ? { gridRow: tile.row, gridColumn: tile.colSpan }
                 : { gridRow: tile.row, gridColumn: tile.col };
 
-              // Ring & Type visual differentiation so the spiral is super clear
               let cardBg =
                 tile.ring === 1
                   ? 'bg-[#faf6e8] border-amber-800/40'
