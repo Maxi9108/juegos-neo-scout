@@ -15,6 +15,7 @@ import React from 'react';
  * - vida_scout: "Kimba el León Guía 3D" 🦁🔥 (Juego de la Vida Scout)
  * - pictionary: "Pinto el Camaleón Artista 3D" 🦎🎨 (Pictionary Scout)
  * - ruleta_momento: "Chispa la Ardilla Malabarista 3D" 🐿️🎡 (Ruleta del Momento)
+ * - tutti_frutti: "Tito el Mono Escriba 3D" 🐒✏️ (Tutti Frutti / ¡Basta para Todos!)
  */
 export default function ScoutCharacter({
   categoryId = 'corona',
@@ -51,7 +52,8 @@ export default function ScoutCharacter({
     oca: { name: 'Oca Baden 3D', title: 'Viajera de los Fogones', badgeColor: '#38BDF8', glow: 'rgba(56,189,248,0.5)' },
     vida_scout: { name: 'Kimba el León 3D', title: 'Guía de Progresión Scout', badgeColor: '#F97316', glow: 'rgba(249,115,22,0.5)' },
     pictionary: { name: 'Pinto el Camaleón 3D', title: 'Artista de la Patrulla', badgeColor: '#8B5CF6', glow: 'rgba(139,92,246,0.5)' },
-    ruleta_momento: { name: 'Chispa la Ardilla 3D', title: 'Maestra de Dinámicas', badgeColor: '#06B6D4', glow: 'rgba(6,182,212,0.5)' }
+    ruleta_momento: { name: 'Chispa la Ardilla 3D', title: 'Maestra de Dinámicas', badgeColor: '#06B6D4', glow: 'rgba(6,182,212,0.5)' },
+    tutti_frutti: { name: 'Tito el Mono Escriba 3D', title: 'Juez del ¡Basta para Todos!', badgeColor: '#F43F5E', glow: 'rgba(244,63,94,0.5)' }
   }[categoryId] || { name: 'Willy Scout 3D', title: 'Anfitrión de la Ruleta', badgeColor: '#EAB308', glow: 'rgba(234,179,8,0.4)' };
 
   const isHappy = reaction === 'happy' || reaction === 'celebrate' || reaction === 'excited';
@@ -437,6 +439,44 @@ export default function ScoutCharacter({
               <circle cx="60" cy="65" r="4" fill="#0F172A" />
               <path d="M44 86 L60 104 L76 86 Z" fill="url(#blue3D)" />
               <circle cx="60" cy="88" r="4" fill="url(#gold3D)" />
+            </g>
+          </svg>
+        );
+
+      case 'tutti_frutti': // Tito el Mono Escriba 3D (¡Basta para Todos!)
+        return (
+          <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+            {renderSharedDefs()}
+            <g filter="url(#3dShadow)">
+              {/* Round Monkey Ears */}
+              <circle cx="24" cy="58" r="13" fill="url(#furBrown3D)" />
+              <circle cx="24" cy="58" r="8" fill="url(#bellyCream3D)" />
+              <circle cx="96" cy="58" r="13" fill="url(#furBrown3D)" />
+              <circle cx="96" cy="58" r="8" fill="url(#bellyCream3D)" />
+              {/* 3D Head & Face Mask */}
+              <ellipse cx="60" cy="62" rx="33" ry="30" fill="url(#furBrown3D)" />
+              <ellipse cx="48" cy="52" rx="14" ry="14" fill="url(#bellyCream3D)" />
+              <ellipse cx="72" cy="52" rx="14" ry="14" fill="url(#bellyCream3D)" />
+              <ellipse cx="60" cy="70" rx="22" ry="15" fill="url(#bellyCream3D)" />
+              {/* Explorer Cap */}
+              <path d="M32 36 Q60 16 88 36 Z" fill="url(#emerald3D)" />
+              <ellipse cx="60" cy="36" rx="34" ry="6" fill="url(#gold3D)" />
+              {render3DEyes(48, 72, 52)}
+              {/* Nostrils & Smile */}
+              <circle cx="56" cy="65" r="2.2" fill="#451A03" />
+              <circle cx="64" cy="65" r="2.2" fill="#451A03" />
+              <path d="M48 73 Q60 82 72 73" stroke="#451A03" strokeWidth="2.8" fill="none" strokeLinecap="round" />
+              {/* Scout Neckerchief */}
+              <path d="M40 86 L60 105 L80 86 Z" fill="url(#red3D)" />
+              {/* 3D Letter Cube & Giant Pencil */}
+              <rect x="14" y="80" width="22" height="22" rx="4" fill="url(#gold3D)" stroke="#92400E" strokeWidth="2" />
+              <text x="25" y="96" textAnchor="middle" fill="#451A03" fontSize="14" fontWeight="900">A-Z</text>
+              <g transform="rotate(-30 92 86)">
+                <rect x="86" y="68" width="10" height="28" rx="2" fill="url(#gold3D)" stroke="#B45309" strokeWidth="1.5" />
+                <polygon points="86,96 96,96 91,106" fill="#FDE68A" />
+                <polygon points="89,102 93,102 91,106" fill="#0F172A" />
+                <rect x="86" y="62" width="10" height="6" rx="2" fill="#F43F5E" />
+              </g>
             </g>
           </svg>
         );

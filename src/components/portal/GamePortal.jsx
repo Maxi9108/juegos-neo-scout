@@ -29,21 +29,47 @@ export default function GamePortal({
     },
     {
       id: 'monopoly',
-      title: 'Monopoly Scout • Campamentos',
-      badge: '¡NUEVO JUEGO 3D ACTIVO!',
+      title: 'Monopoly Scout • Tablero de Mesa',
+      badge: '¡TABLERO DE MESA REAL!',
       badgeColor: 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black shadow-md',
       categoryChar: 'monopoly',
-      description: 'Recorre la Isla de Brownsea, Gilwell Park y Mafeking junto a Don Kiki 3D. Compra parcelas con Florines Scout, arma carpas ⛺ y construye mangrullos 🗼.',
-      players: '2 a 4 Patrullas • Dados 3D',
+      description: 'Tablero perimetral real con paño central, mazos de Cofre de Intendencia y Suerte del Fogón, escrituras de acampe, carpas ⛺ y mangrullos 🗼.',
+      players: '2 a 4 Patrullas • Tablero de Mesa',
       pointsReward: 'Florines + Ranking',
       gradient: 'from-[#081f1c] via-[#09152b] to-[#0a2324]',
       borderColor: 'border-emerald-500/50 hover:border-emerald-300',
       buttonText: '¡JUGAR MONOPOLY SCOUT!'
     },
     {
+      id: 'oca',
+      title: 'Juego de la Oca Scout • Tablero',
+      badge: '¡SENDERO DE MESA REAL!',
+      badgeColor: 'bg-gradient-to-r from-sky-500 to-indigo-400 text-slate-950 font-black shadow-md',
+      categoryChar: 'oca',
+      description: 'Tablero serpenteante de 24 casillas ilustradas: ¡De Oca a Oca y de fogón a fogón! Con puentes de mono, retos de patrulla en mesa y dados 3D.',
+      players: '2 a 4 Patrullas • Sendero Ilustrado',
+      pointsReward: '+1200 pts al Ganador',
+      gradient: 'from-[#08172e] via-[#09152b] to-[#0c1f3d]',
+      borderColor: 'border-sky-500/50 hover:border-sky-300',
+      buttonText: '¡JUGAR OCA SCOUT!'
+    },
+    {
+      id: 'tutti_frutti',
+      title: 'Tutti Frutti Scout • ¡Basta!',
+      badge: '¡NUEVO • BASTA AUTOMÁTICO!',
+      badgeColor: 'bg-gradient-to-r from-rose-500 to-amber-400 text-slate-950 font-black shadow-md',
+      categoryChar: 'tutti_frutti',
+      description: 'Genera la tabla con las columnas que quieras escribir, sortea una letra aleatoria cuando indiques y el ¡Basta para todos! frena automáticamente a todos.',
+      players: 'Grupal Sincronizado • Link de Sala',
+      pointsReward: '10 pts única / 5 pts repetida',
+      gradient: 'from-[#290b1c] via-[#09152b] to-[#24130a]',
+      borderColor: 'border-rose-500/60 hover:border-rose-300',
+      buttonText: '¡JUGAR TUTTI FRUTTI!'
+    },
+    {
       id: 'loteria',
       title: 'Lotería Familiar & Bingo Scout',
-      badge: '¡NUEVO SORTEADOR RANDOM!',
+      badge: '¡SORTEADOR RANDOM!',
       badgeColor: 'bg-gradient-to-r from-pink-500 to-amber-400 text-slate-950 font-black shadow-md',
       categoryChar: 'loteria',
       description: 'Bolillero 3D con Toto el Loro Cantador. Elige libremente DESDE y HASTA qué número sortear, con voz cantada, pizarra de control y cartones digitales.',
@@ -52,19 +78,6 @@ export default function GamePortal({
       gradient: 'from-[#220c29] via-[#09152b] to-[#1f112b]',
       borderColor: 'border-pink-500/50 hover:border-pink-300',
       buttonText: '¡ABRIR LOTERÍA FAMILIAR!'
-    },
-    {
-      id: 'oca',
-      title: 'Juego de la Oca Scout 3D',
-      badge: '¡TABLERO ACTIVO!',
-      badgeColor: 'bg-gradient-to-r from-sky-500 to-indigo-400 text-slate-950 font-black shadow-md',
-      categoryChar: 'oca',
-      description: '¡De fogón a fogón y tiro por el bordón! Avanza con Oca Baden 3D cruzando puentes de mono y tormentas hasta llegar a la Isla de Brownsea.',
-      players: '2 a 6 Patrullas • Tablero de 21 Casillas',
-      pointsReward: '+1200 pts al Ganador',
-      gradient: 'from-[#08172e] via-[#09152b] to-[#0c1f3d]',
-      borderColor: 'border-sky-500/50 hover:border-sky-300',
-      buttonText: '¡JUGAR OCA SCOUT!'
     },
     {
       id: 'vida_scout',
@@ -122,7 +135,7 @@ export default function GamePortal({
                 Juegos Neo-Scout 24/7
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl leading-relaxed">
-                6 Juegos interactivos con personajes 3D, Secciones por Grupo, Rama, Distrito y Zona, Ruedas del Momento, Links Grupales y Rotación Semanal de Preguntas.
+                7 Juegos interactivos con tableros de mesa reales y personajes 3D (Preguntados, Monopoly de Mesa, Oca Serpenteante, Tutti Frutti con ¡Basta Automático!, Lotería, Vida Scout y Pictionary), Secciones por Grupo y Rama, y Rotación Semanal.
               </p>
 
               {/* Quick Feature Pills */}

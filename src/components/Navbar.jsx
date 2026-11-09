@@ -97,7 +97,7 @@ export default function Navbar({ activeTab, setActiveTab, isMuted, setIsMuted, o
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 font-medium hidden lg:block">
-                6 Juegos • Grupos y Ramas • Links Grupales
+                7 Juegos • Tableros de Mesa • Links Grupales
               </p>
             </div>
           </div>
