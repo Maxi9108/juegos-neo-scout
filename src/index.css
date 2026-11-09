@@ -29,51 +29,106 @@
   background: #3b4e6b;
 }
 
-/* Character Custom Animations */
-@keyframes bounce-subtle {
+/* 3D Cartoon Character & Scene Animations */
+@keyframes float-3d {
   0%, 100% {
-    transform: translateY(0);
+    transform: perspective(600px) translateY(0px) rotateX(4deg) rotateY(-6deg) scale(1);
   }
   50% {
-    transform: translateY(-8px);
+    transform: perspective(600px) translateY(-10px) rotateX(-4deg) rotateY(8deg) scale(1.04);
   }
 }
 
-@keyframes wiggle {
+@keyframes wiggle-3d {
   0%, 100% {
-    transform: rotate(-3deg);
+    transform: perspective(600px) rotateZ(-5deg) rotateY(-12deg) scale(1.02);
   }
   50% {
-    transform: rotate(3deg);
+    transform: perspective(600px) rotateZ(5deg) rotateY(12deg) scale(1.06);
   }
 }
 
-@keyframes droop {
-  0% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(4px) scale(0.96); }
-  100% { transform: translateY(0) scale(1); }
+@keyframes droop-3d {
+  0%, 100% {
+    transform: perspective(600px) translateY(0) rotateX(0deg) scale(1);
+  }
+  50% {
+    transform: perspective(600px) translateY(6px) rotateX(14deg) scale(0.94);
+  }
 }
 
-@keyframes spin-celebrate {
-  0% { transform: scale(1) rotate(0deg); }
-  25% { transform: scale(1.15) rotate(-10deg); }
-  50% { transform: scale(1.2) rotate(10deg); }
-  75% { transform: scale(1.15) rotate(-5deg); }
-  100% { transform: scale(1) rotate(0deg); }
+@keyframes celebrate-3d {
+  0% {
+    transform: perspective(600px) translateY(0) scale(1) rotateY(0deg);
+  }
+  25% {
+    transform: perspective(600px) translateY(-14px) scale(1.16) rotateZ(-8deg) rotateY(18deg);
+  }
+  50% {
+    transform: perspective(600px) translateY(-18px) scale(1.22) rotateZ(8deg) rotateY(-18deg);
+  }
+  75% {
+    transform: perspective(600px) translateY(-10px) scale(1.14) rotateZ(-4deg) rotateY(10deg);
+  }
+  100% {
+    transform: perspective(600px) translateY(0) scale(1) rotateY(0deg);
+  }
+}
+
+@keyframes shadow-pulse-3d {
+  0%, 100% {
+    transform: scaleX(1) scaleY(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleX(0.75) scaleY(0.8);
+    opacity: 0.3;
+  }
 }
 
 .animate-bounce-subtle {
-  animation: bounce-subtle 2.5s ease-in-out infinite;
+  animation: float-3d 3s ease-in-out infinite;
+  transform-style: preserve-3d;
 }
 
 .animate-wiggle {
-  animation: wiggle 0.6s ease-in-out infinite;
+  animation: wiggle-3d 0.7s ease-in-out infinite;
+  transform-style: preserve-3d;
 }
 
 .animate-droop {
-  animation: droop 2s ease-in-out infinite;
+  animation: droop-3d 2s ease-in-out infinite;
+  transform-style: preserve-3d;
 }
 
 .animate-spin-celebrate {
-  animation: spin-celebrate 0.8s ease-in-out infinite;
+  animation: celebrate-3d 0.9s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+.shadow-pedestal-3d {
+  animation: shadow-pulse-3d 3s ease-in-out infinite;
+}
+
+/* 3D Toy Card Style */
+.card-3d {
+  box-shadow:
+    0 12px 0 -2px rgba(0, 0, 0, 0.45),
+    0 20px 30px -5px rgba(0, 0, 0, 0.6),
+    inset 0 2px 1px rgba(255, 255, 255, 0.18);
+}
+
+.btn-3d {
+  box-shadow:
+    0 5px 0 rgba(0, 0, 0, 0.4),
+    0 8px 15px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  transition: all 0.15s ease;
+}
+
+.btn-3d:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.4),
+    0 3px 6px rgba(0, 0, 0, 0.3);
 }

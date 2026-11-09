@@ -37,8 +37,8 @@ export function AuthProvider({ children }) {
     return user;
   };
 
-  const register = async (email, password, name) => {
-    const user = await sheetService.register(email, password, name);
+  const register = async (email, password, name, extra = {}) => {
+    const user = await sheetService.register(email, password, name, extra);
     setCurrentUser(user);
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
     return user;
@@ -78,4 +78,3 @@ export function useAuth() {
   }
   return context;
 }
-

@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { CATEGORIES } from '../../data/categories';
+import { DEFAULT_QUESTIONS } from '../../data/defaultQuestions';
 import Wheel from '../Wheel';
 import QuestionCard from '../QuestionCard';
 import BadgeBelt from '../BadgeBelt';
 import CrownModal from '../CrownModal';
 import { sound } from '../../utils/audio';
-import { Shield, Users, Swords, Trophy, Plus, Trash2, ArrowRight, RotateCcw } from 'lucide-react';
+import { sheetService } from '../../services/sheetService';
+import { Shield, Users, Trophy, Plus, Trash2, ArrowRight } from 'lucide-react';
 
 const DEFAULT_PATROLS = [
   { id: 'aguilas', name: 'Patrulla Águilas', totem: '🦅', color: '#10B981', badges: [], score: 0 },
@@ -15,27 +17,27 @@ const DEFAULT_PATROLS = [
   { id: 'jaguares', name: 'Patrulla Jaguares', totem: '🐆', color: '#EF4444', badges: [], score: 0 }
 ];
 
-export default function PatrolChallengeMode({ questions }) {
+export default function PatrolChallengeMode({ questions, activeContext = {} }) {
   const [patrols, setPatrols] = useState(DEFAULT_PATROLS.slice(0, 2));
   const [isConfiguring, setIsConfiguring] = useState(true);
   const [currentPatrolIndex, setCurrentPatrolIndex] = useState(0);
-  const [gameState, setGameState] = useState('spin'); // 'spin' | 'choose_crown' | 'question' | 'duel_setup' | 'victory'
+  const [gameState, setGameState] = useState('spin');
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [isCrownQuestion, setIsCrownQuestion] = useState(false);
   const [targetBadge, setTargetBadge] = useState(null);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [duelTargetPatrol, setDuelTargetPatrol] = useState(null);
   const [winnerPatrol, setWinnerPatrol] = useState(null);
+  const usedIdsRef = useRef(new Set());
 
   const currentPatrol = patrols[currentPatrolIndex] || patrols[0];
 
-  // Helper to add patrol
   const handleAddPatrol = () => {
     if (patrols.length >= 6) return;
     const presets = [
-      { name: 'Patrulla Cobras', totem: '🐍', color: '#8B5CF6' },
+      { name: 'Patrulla Halcones', totem: '🪶', color: '#D97706' },
+      { name: 'Patrulla Jaguares', totem: '🐆', color: '#EF4444' },
       { name: 'Patrulla Castores', totem: '🦫', color: '#F59E0B' },
-      { name: 'Patrulla Osos', totem: '🐻', color: '#8B5A2B' }
+      { name: 'Patrulla Osos', totem: '🐻', color: '#8B5CF6' }
     ];
     const nextPreset = presets[(patrols.length - 2) % presets.length];
     setPatrols([
@@ -51,36 +53,42 @@ export default function PatrolChallengeMode({ questions }) {
     ]);
   };
 
-  // Helper to remove patrol
   const handleRemovePatrol = (index) => {
     if (patrols.length <= 2) return;
     setPatrols(patrols.filter((_, i) => i !== index));
   };
 
-  // Start game with configured patrols
   const handleStartGame = () => {
     setIsConfiguring(false);
     setCurrentPatrolIndex(0);
     setGameState('spin');
+    usedIdsRef.current.clear();
   };
 
-  // Reset Game
   const handleResetGame = () => {
     setPatrols(patrols.map(p => ({ ...p, badges: [], score: 0 })));
     setIsConfiguring(true);
     setCurrentPatrolIndex(0);
     setGameState('spin');
     setWinnerPatrol(null);
+    usedIdsRef.current.clear();
   };
 
-  // Random question
   const getRandomQuestion = (categoryId) => {
-    const pool = questions.filter(q => q.category === categoryId);
-    const chosenPool = pool.length > 0 ? pool : questions;
-    return chosenPool[Math.floor(Math.random() * chosenPool.length)];
+    let pool = (questions || []).filter(q => q.category === categoryId);
+    if (pool.length === 0) {
+      pool = DEFAULT_QUESTIONS.filter(q => q.category === categoryId);
+    }
+    let unasked = pool.filter(q => !usedIdsRef.current.has(q.id));
+    if (unasked.length === 0) {
+      pool.forEach(q => usedIdsRef.current.delete(q.id));
+      unasked = pool;
+    }
+    const chosen = unasked[Math.floor(Math.random() * unasked.length)];
+    if (chosen && chosen.id) usedIdsRef.current.add(chosen.id);
+    return { ...chosen, category: categoryId };
   };
 
-  // On Wheel Spin
   const handleSpinComplete = (sector) => {
     if (sector.id === 'corona') {
       setGameState('choose_crown');
@@ -93,7 +101,6 @@ export default function PatrolChallengeMode({ questions }) {
     }
   };
 
-  // Select Crown Badge
   const handleSelectCrownCategory = (categoryId) => {
     const q = getRandomQuestion(categoryId);
     setCurrentQuestion(q);
@@ -102,19 +109,16 @@ export default function PatrolChallengeMode({ questions }) {
     setGameState('question');
   };
 
-  // Next Patrol Turn
   const nextTurn = () => {
     setCurrentPatrolIndex((prev) => (prev + 1) % patrols.length);
     setGameState('spin');
     setCurrentQuestion(null);
-    setDuelTargetPatrol(null);
   };
 
-  // Answer handler
   const handleAnswer = ({ isCorrect }) => {
     if (isCorrect) {
       sound.playCorrect();
-      const points = isCrownQuestion ? 300 : 100;
+      const points = isCrownQuestion ? 300 : 120;
 
       setPatrols(prevPatrols => {
         return prevPatrols.map((p, idx) => {
@@ -125,44 +129,34 @@ export default function PatrolChallengeMode({ questions }) {
             newBadges.push(targetBadge);
           }
 
-          // If this was a duel and won, steal badge from duelTargetPatrol
-          if (duelTargetPatrol && targetBadge) {
-            newBadges.push(targetBadge);
-          }
-
           const updated = {
             ...p,
             score: p.score + points,
             badges: newBadges
           };
 
-          // Check win condition (all 6 badges or 4 badges in group mode)
           if (newBadges.length >= 6) {
             setWinnerPatrol(updated);
             setGameState('victory');
             launchVictoryConfetti();
+            sheetService.addScore({
+              jugador: `${updated.totem} ${updated.name}`,
+              grupo: activeContext.grupo || 'Grupo Scout General',
+              rama: activeContext.rama || 'todas',
+              distrito: activeContext.distrito || 'Distrito Central',
+              zona: activeContext.zona || 'Zona 1',
+              codigoSala: activeContext.codigoSala || '',
+              juego: 'Preguntados Scout',
+              puntos: updated.score,
+              insignias: updated.badges.length,
+              avatar: 'ley_valores'
+            });
           }
 
           return updated;
         });
       });
 
-      // If duel won, remove badge from defender
-      if (duelTargetPatrol && targetBadge) {
-        setPatrols(prevPatrols => {
-          return prevPatrols.map(p => {
-            if (p.id === duelTargetPatrol.id) {
-              return {
-                ...p,
-                badges: p.badges.filter(b => b !== targetBadge)
-              };
-            }
-            return p;
-          });
-        });
-      }
-
-      // Next turn
       nextTurn();
     } else {
       sound.playWrong();
@@ -172,29 +166,23 @@ export default function PatrolChallengeMode({ questions }) {
 
   const launchVictoryConfetti = () => {
     sound.playVictory();
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-6">
-      
-      {/* Configuration Screen */}
+    <div className="w-full max-w-5xl mx-auto px-4 py-4">
       {isConfiguring && (
-        <div className="bg-slate-900 border-2 border-emerald-800/60 rounded-3xl p-6 sm:p-8 max-w-2xl mx-auto shadow-2xl">
+        <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-3xl p-6 sm:p-8 max-w-2xl mx-auto shadow-2xl card-3d">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-3 bg-emerald-600/20 text-emerald-400 rounded-2xl border border-emerald-500/30">
               <Shield className="w-8 h-8" />
             </div>
             <div>
               <h2 className="text-2xl font-heading font-black text-amber-300">
-                Desafío de Patrullas (Modo Grupo)
+                Desafío de Patrullas ({activeContext.grupo || 'Modo Grupal'})
               </h2>
               <p className="text-xs sm:text-sm text-slate-300">
-                Configura las patrullas que competirán por turnos en la pantalla o proyector.
+                Configura las patrullas o seisenas que competirán por turnos y registrarán su puntaje.
               </p>
             </div>
           </div>
@@ -240,7 +228,7 @@ export default function PatrolChallengeMode({ questions }) {
 
             <button
               onClick={handleStartGame}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-heading font-black text-base shadow-lg shadow-emerald-950/50 hover:brightness-110 active:scale-95 transition"
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-heading font-black text-base btn-3d"
             >
               <span>¡Comenzar Desafío!</span>
               <ArrowRight className="w-5 h-5" />
@@ -249,12 +237,9 @@ export default function PatrolChallengeMode({ questions }) {
         </div>
       )}
 
-      {/* Main Game Screen */}
       {!isConfiguring && gameState !== 'victory' && (
         <div>
-          
-          {/* Active Patrol Turn Header */}
-          <div className="bg-slate-900 border-2 border-amber-500/40 rounded-3xl p-4 sm:p-5 mb-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="bg-slate-900 border-2 border-amber-500/40 rounded-3xl p-4 sm:p-5 mb-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 card-3d">
             <div className="flex items-center gap-4">
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-lg border-2 border-white/20"
@@ -264,7 +249,7 @@ export default function PatrolChallengeMode({ questions }) {
               </div>
               <div>
                 <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
-                  TURNO ACTUAL DE PATRULLA
+                  TURNO DE PATRULLA • {activeContext.grupo}
                 </span>
                 <h2 className="text-xl sm:text-2xl font-heading font-black text-white">
                   {currentPatrol.name}
@@ -288,7 +273,6 @@ export default function PatrolChallengeMode({ questions }) {
             </div>
           </div>
 
-          {/* Scoreboard and Patrols Badges Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             {patrols.map((patrol, idx) => {
               const isActive = idx === currentPatrolIndex;
@@ -314,7 +298,6 @@ export default function PatrolChallengeMode({ questions }) {
             })}
           </div>
 
-          {/* Arena: Wheel, Question, or Modals */}
           {gameState === 'spin' && (
             <div className="flex flex-col items-center justify-center py-2">
               <Wheel
@@ -346,23 +329,22 @@ export default function PatrolChallengeMode({ questions }) {
         </div>
       )}
 
-      {/* Victory Celebration */}
       {gameState === 'victory' && winnerPatrol && (
-        <div className="p-8 bg-slate-900 border-2 border-amber-400 rounded-3xl text-center shadow-2xl max-w-xl mx-auto animate-in zoom-in-95">
+        <div className="p-8 bg-slate-900 border-2 border-amber-400 rounded-3xl text-center shadow-2xl max-w-xl mx-auto animate-in zoom-in-95 card-3d">
           <div className="text-6xl mb-3 animate-bounce">{winnerPatrol.totem}</div>
           <div className="w-16 h-16 mx-auto bg-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/40 mb-3">
             <Trophy className="w-10 h-10 text-slate-950" />
           </div>
           <h2 className="text-3xl font-heading font-black text-amber-300">
-            ¡VICTORIA PARA LA {winnerPatrol.name.toUpperCase()}!
+            ¡VICTORIA PARA {winnerPatrol.name.toUpperCase()}!
           </h2>
           <p className="text-slate-300 mt-2 font-medium">
-            ¡Han demostrado su maestría scout y completado las insignias con {winnerPatrol.score} puntos!
+            ¡Completaron las 6 insignias con {winnerPatrol.score} puntos y quedaron en la Lista de Puntajes!
           </p>
 
           <button
             onClick={handleResetGame}
-            className="mt-6 px-8 py-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-heading font-black text-base rounded-2xl hover:brightness-110 shadow-lg mx-auto"
+            className="mt-6 px-8 py-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-heading font-black text-base rounded-2xl btn-3d mx-auto"
           >
             Nueva Competencia de Patrullas
           </button>
@@ -371,4 +353,3 @@ export default function PatrolChallengeMode({ questions }) {
     </div>
   );
 }
-
