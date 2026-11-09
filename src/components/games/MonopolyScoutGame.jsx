@@ -260,11 +260,10 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
           return (
             <div
               key={p.id}
-              className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${
-                isTurn
+              className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${isTurn
                   ? 'bg-slate-900 border-amber-400 shadow-lg scale-[1.02] card-3d'
                   : 'bg-slate-950/80 border-slate-800 opacity-80'
-              }`}
+                }`}
             >
               <div className="flex items-center gap-3">
                 <div
@@ -304,11 +303,10 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
             return (
               <div
                 key={tile.id}
-                className={`relative rounded-2xl p-3 border-2 flex flex-col justify-between min-h-[118px] transition-all ${
-                  currentPlayer.pos === tile.id
+                className={`relative rounded-2xl p-3 border-2 flex flex-col justify-between min-h-[118px] transition-all ${currentPlayer.pos === tile.id
                     ? 'bg-slate-800/95 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.35)] scale-[1.02]'
                     : 'bg-slate-900/90 border-slate-800'
-                }`}
+                  }`}
               >
                 {/* Top Color Strip */}
                 <div
@@ -386,9 +384,8 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
               {dice.map((d, i) => (
                 <div
                   key={i}
-                  className={`w-16 h-16 rounded-2xl bg-gradient-to-br from-white to-slate-200 text-slate-950 font-heading font-black text-3xl flex items-center justify-center shadow-xl border-b-4 border-slate-400 ${
-                    isRolling ? 'animate-spin' : ''
-                  }`}
+                  className={`w-16 h-16 rounded-2xl bg-gradient-to-br from-white to-slate-200 text-slate-950 font-heading font-black text-3xl flex items-center justify-center shadow-xl border-b-4 border-slate-400 ${isRolling ? 'animate-spin' : ''
+                    }`}
                 >
                   {d}
                 </div>
@@ -470,3 +467,4 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
     </div>
   );
 }
+

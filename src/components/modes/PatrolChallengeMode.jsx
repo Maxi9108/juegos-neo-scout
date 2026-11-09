@@ -279,11 +279,10 @@ export default function PatrolChallengeMode({ questions, activeContext = {} }) {
               return (
                 <div
                   key={patrol.id}
-                  className={`p-3.5 rounded-2xl border transition-all ${
-                    isActive
+                  className={`p-3.5 rounded-2xl border transition-all ${isActive
                       ? 'bg-slate-900 border-2 border-amber-400 shadow-lg scale-[1.02]'
                       : 'bg-slate-950/70 border-slate-800 opacity-70'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">

@@ -440,3 +440,4 @@ export default function FamilyLotteryGame({ onBack }) {
     </div>
   );
 }
+
