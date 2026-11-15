@@ -16,15 +16,15 @@ import {
   RotateCcw,
   Share2,
   CheckCircle2,
-  Eye,
-  EyeOff,
   Trophy,
-  Flame,
   Waves,
   Compass,
   Radio,
   Anchor,
-  Sparkles
+  Bot,
+  User,
+  Lock,
+  Wifi
 } from 'lucide-react';
 
 // 5 Scout Naval / Camp Units (Total = 14 cells per player)
@@ -39,6 +39,13 @@ export const SCOUT_FLEET_TEMPLATES = [
 const TOTAL_FLEET_CELLS = SCOUT_FLEET_TEMPLATES.reduce((acc, u) => acc + u.size, 0); // 14
 
 const PLAYER_AVATARS = ['🐺', '🦫', '🦅', '🦊', '🦁', '🐻', '🦉', '🦎', '🐗', '🦌', '🐬', '🐝'];
+const BOT_PRESETS = [
+  { name: 'Bot Capitán Nutria', avatar: '🦦' },
+  { name: 'Bot Patrulla Águilas', avatar: '🦅' },
+  { name: 'Bot Patrulla Castores', avatar: '🦫' },
+  { name: 'Bot Patrulla Zorros', avatar: '🦊' },
+  { name: 'Bot Guardián Rover', avatar: '🧭' }
+];
 
 const ROW_LETTERS_MAP = {
   6: ['A', 'B', 'C', 'D', 'E', 'F'],
@@ -105,6 +112,19 @@ function generateRandomFleet(gridSize = 8) {
 export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
   const { currentUser } = useAuth();
 
+  // Persistent client player ID per browser tab/session so each person on a link has their own identity & secret board
+  const [myPlayerId] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('neofaro_naval_my_player_id');
+      if (saved) return saved;
+      const created = `player-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      sessionStorage.setItem('neofaro_naval_my_player_id', created);
+      return created;
+    } catch {
+      return `player-${Math.random().toString(36).slice(2, 8)}`;
+    }
+  });
+
   // Room & Live Sync State
   const [roomCode, setRoomCode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -123,75 +143,128 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
   // 'coordinator_all': Coordinator calls a position -> ALL players with something at that position lose it.
   const [strikeMode, setStrikeMode] = useState('turns_others');
 
-  // Players list
+  // Players list: starts with the current human user + 2 Computer Bots so you can play immediately vs Computer OR invite friends via link!
   const [players, setPlayers] = useState(() => {
-    const initialNames = [
-      { id: 'p-1', name: currentUser?.nombre || 'Patrulla Lobos', avatar: '🐺' },
-      { id: 'p-2', name: 'Patrulla Castores', avatar: '🦫' },
-      { id: 'p-3', name: 'Patrulla Águilas', avatar: '🦅' },
-      { id: 'p-4', name: 'Patrulla Zorros', avatar: '🦊' }
-    ];
-    return initialNames.map(p => {
-      const fleet = generateRandomFleet(8);
-      return {
-        ...p,
-        placements: fleet.placements,
-        units: fleet.units,
-        hitsReceived: [], // coords where this player was hit
-        missesReceived: [], // coords where this player had water
+    const myFleet = generateRandomFleet(8);
+    const bot1Fleet = generateRandomFleet(8);
+    const bot2Fleet = generateRandomFleet(8);
+
+    return [
+      {
+        id: myPlayerId,
+        name: currentUser?.nombre || 'Mi Patrulla Scout',
+        avatar: '🐺',
+        isBot: false,
+        ownerId: myPlayerId,
+        ready: true,
+        placements: myFleet.placements,
+        units: myFleet.units,
+        hitsReceived: [],
+        missesReceived: [],
         score: 0,
         hitsInflicted: 0,
         eliminated: false
-      };
-    });
+      },
+      {
+        id: 'bot-nutria',
+        name: 'Bot Capitán Nutria (PC)',
+        avatar: '🦦',
+        isBot: true,
+        ownerId: 'cpu',
+        ready: true,
+        placements: bot1Fleet.placements,
+        units: bot1Fleet.units,
+        hitsReceived: [],
+        missesReceived: [],
+        score: 0,
+        hitsInflicted: 0,
+        eliminated: false
+      },
+      {
+        id: 'bot-aguilas',
+        name: 'Bot Patrulla Águilas (PC)',
+        avatar: '🦅',
+        isBot: true,
+        ownerId: 'cpu',
+        ready: true,
+        placements: bot2Fleet.placements,
+        units: bot2Fleet.units,
+        hitsReceived: [],
+        missesReceived: [],
+        score: 0,
+        hitsInflicted: 0,
+        eliminated: false
+      }
+    ];
   });
 
-  // Setup state: adding new players & editing a specific player's board
-  const [newPlayerName, setNewPlayerName] = useState('');
-  const [newPlayerAvatar, setNewPlayerAvatar] = useState('🦁');
-  const [editingPlayerId, setEditingPlayerId] = useState('p-1');
+  // My profile form (for editing my name/avatar or joining via link)
+  const [myNameInput, setMyNameInput] = useState(currentUser?.nombre || 'Mi Patrulla Scout');
+  const [myAvatarInput, setMyAvatarInput] = useState('🐺');
   const [selectedUnitId, setSelectedUnitId] = useState('canoa');
   const [orientation, setOrientation] = useState('H'); // 'H' | 'V'
-  const [hideSetupBoard, setHideSetupBoard] = useState(false);
 
   // Battle state
   const [currentTurnIdx, setCurrentTurnIdx] = useState(0);
-  const [calledCoords, setCalledCoords] = useState({}); // coord -> { callerName, hits: [{ playerName, unitName, sunk }], misses: [playerName] }
+  const [calledCoords, setCalledCoords] = useState({}); // coord -> { callerName, hits: [...], misses: [...] }
   const [selectedRow, setSelectedRow] = useState('A');
   const [selectedCol, setSelectedCol] = useState(1);
   const [lastStrikeReport, setLastStrikeReport] = useState(null);
   const [battleLog, setBattleLog] = useState([]);
-  const [peekPlayerId, setPeekPlayerId] = useState(null); // Allow a player to secretly inspect their own board
-  const [revealAllBoards, setRevealAllBoards] = useState(false);
   const [winner, setWinner] = useState(null);
+  const [botThinking, setBotThinking] = useState(false);
 
   // Real-time pub/sub refs
   const bcRef = useRef(null);
-  const clientIdRef = useRef(`naval-${Math.random().toString(36).slice(2, 9)}`);
   const lastSeqRef = useRef(0);
+  const stateRef = useRef({
+    players,
+    phase,
+    strikeMode,
+    gridSize,
+    currentTurnIdx,
+    calledCoords,
+    lastStrikeReport,
+    battleLog,
+    winner
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      players,
+      phase,
+      strikeMode,
+      gridSize,
+      currentTurnIdx,
+      calledCoords,
+      lastStrikeReport,
+      battleLog,
+      winner
+    };
+  }, [players, phase, strikeMode, gridSize, currentTurnIdx, calledCoords, lastStrikeReport, battleLog, winner]);
 
   const rows = useMemo(() => ROW_LETTERS_MAP[gridSize] || ROW_LETTERS_MAP[8], [gridSize]);
   const cols = useMemo(() => Array.from({ length: gridSize }, (_, i) => i + 1), [gridSize]);
 
   const ntfyTopic = useMemo(() => {
     const clean = (roomCode || 'NAVAL-247').replace(/[^A-Z0-9_-]/gi, '').toUpperCase();
-    return `neofaro_naval_v1_${clean}`;
+    return `neofaro_naval_v2_${clean}`;
   }, [roomCode]);
 
-  // Broadcast state to other tabs/devices in the same room
+  // Broadcast state or player join to other tabs/devices in the same room
   const broadcastRoomPayload = (type, data) => {
     const seq = Date.now();
     lastSeqRef.current = seq;
     const message = {
       type,
       room: roomCode,
-      senderId: clientIdRef.current,
+      senderId: myPlayerId,
       seq,
       ...data
     };
 
     try {
-      localStorage.setItem(`naval_sync_${roomCode}`, JSON.stringify(message));
+      localStorage.setItem(`naval_sync_v2_${roomCode}`, JSON.stringify(message));
     } catch {
       // ignore
     }
@@ -214,15 +287,77 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     }
   };
 
-  // Subscribe to real-time room events
+  // Ensure that when I join a room via link, my player exists in the room's player list
+  const mergeIncomingPlayersWithMe = (incomingPlayers, currentGridSize) => {
+    if (!Array.isArray(incomingPlayers)) return players;
+    const exists = incomingPlayers.some(p => p.id === myPlayerId);
+    if (exists) return incomingPlayers;
+
+    // Add myself if I wasn't in the host's list yet
+    const myCurrent = stateRef.current.players.find(p => p.id === myPlayerId);
+    const fleet = myCurrent?.placements && Object.keys(myCurrent.placements).length > 0
+      ? { placements: myCurrent.placements, units: myCurrent.units }
+      : generateRandomFleet(currentGridSize || 8);
+
+    const meEntry = myCurrent || {
+      id: myPlayerId,
+      name: myNameInput || 'Jugador en Línea',
+      avatar: myAvatarInput || '🐺',
+      isBot: false,
+      ownerId: myPlayerId,
+      ready: true,
+      placements: fleet.placements,
+      units: fleet.units,
+      hitsReceived: [],
+      missesReceived: [],
+      score: 0,
+      hitsInflicted: 0,
+      eliminated: false
+    };
+
+    return [...incomingPlayers, meEntry];
+  };
+
+  // Subscribe to real-time room events (shared link online multiplayer)
   useEffect(() => {
     const handleIncomingMessage = (msg) => {
-      if (!msg || msg.room !== roomCode || msg.senderId === clientIdRef.current) return;
+      if (!msg || msg.room !== roomCode || msg.senderId === myPlayerId) return;
       if (msg.seq && msg.seq <= lastSeqRef.current) return;
       if (msg.seq) lastSeqRef.current = msg.seq;
 
-      if (msg.type === 'SYNC_STATE') {
-        if (Array.isArray(msg.players)) setPlayers(msg.players);
+      if (msg.type === 'PLAYER_UPSERT' && msg.player) {
+        setPlayers(prev => {
+          const exists = prev.some(p => p.id === msg.player.id);
+          const updated = exists
+            ? prev.map(p => (p.id === msg.player.id ? msg.player : p))
+            : [...prev, msg.player];
+          return updated;
+        });
+      } else if (msg.type === 'REQUEST_STATE') {
+        // Another player just opened the shared link -> send current state and include their player if provided
+        const current = stateRef.current;
+        let nextPlayers = current.players;
+        if (msg.player) {
+          const exists = nextPlayers.some(p => p.id === msg.player.id);
+          nextPlayers = exists
+            ? nextPlayers.map(p => (p.id === msg.player.id ? msg.player : p))
+            : [...nextPlayers, msg.player];
+          setPlayers(nextPlayers);
+        }
+        broadcastRoomPayload('SYNC_STATE', {
+          players: nextPlayers,
+          phase: current.phase,
+          strikeMode: current.strikeMode,
+          gridSize: current.gridSize,
+          currentTurnIdx: current.currentTurnIdx,
+          calledCoords: current.calledCoords,
+          lastStrikeReport: current.lastStrikeReport,
+          battleLog: current.battleLog,
+          winner: current.winner
+        });
+      } else if (msg.type === 'SYNC_STATE') {
+        const merged = mergeIncomingPlayersWithMe(msg.players, msg.gridSize || gridSize);
+        setPlayers(merged);
         if (msg.phase) setPhase(msg.phase);
         if (msg.strikeMode) setStrikeMode(msg.strikeMode);
         if (msg.gridSize) setGridSize(msg.gridSize);
@@ -235,13 +370,13 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     };
 
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      const bc = new BroadcastChannel(`neofaro_naval_${roomCode}`);
+      const bc = new BroadcastChannel(`neofaro_naval_v2_${roomCode}`);
       bc.onmessage = (ev) => handleIncomingMessage(ev.data);
       bcRef.current = bc;
     }
 
     const onStorage = (ev) => {
-      if (ev.key === `naval_sync_${roomCode}` && ev.newValue) {
+      if (ev.key === `naval_sync_v2_${roomCode}` && ev.newValue) {
         try {
           handleIncomingMessage(JSON.parse(ev.newValue));
         } catch {
@@ -270,6 +405,14 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
       }
     }
 
+    // Announce our presence to the room so if a game is already hosted on this link, we join automatically
+    const me = stateRef.current.players.find(p => p.id === myPlayerId);
+    if (me) {
+      setTimeout(() => {
+        broadcastRoomPayload('REQUEST_STATE', { player: me });
+      }, 300);
+    }
+
     return () => {
       window.removeEventListener('storage', onStorage);
       if (bcRef.current) {
@@ -294,7 +437,63 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     });
   };
 
-  // Copy shareable link
+  // Find ONLY my own player object — I can NEVER see other players' secret placements!
+  const myPlayer = useMemo(() => {
+    return players.find(p => p.id === myPlayerId) || players[0];
+  }, [players, myPlayerId]);
+
+  // Update my own name/avatar
+  const handleUpdateMyProfile = (newName, newAvatar) => {
+    setMyNameInput(newName);
+    setMyAvatarInput(newAvatar);
+    const updatedMe = {
+      ...myPlayer,
+      name: newName.trim() || 'Mi Patrulla Scout',
+      avatar: newAvatar
+    };
+    const nextPlayers = players.map(p => (p.id === myPlayer.id ? updatedMe : p));
+    setPlayers(nextPlayers);
+    broadcastRoomPayload('PLAYER_UPSERT', { player: updatedMe });
+  };
+
+  // Add a Computer Bot opponent
+  const handleAddBot = () => {
+    const existingBotNames = new Set(players.map(p => p.name));
+    const preset = BOT_PRESETS.find(b => !existingBotNames.has(`${b.name} (PC)`)) || {
+      name: `Bot Explorador #${players.filter(p => p.isBot).length + 1}`,
+      avatar: '🤖'
+    };
+    const fleet = generateRandomFleet(gridSize);
+    const newBot = {
+      id: `bot-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      name: `${preset.name} (PC)`,
+      avatar: preset.avatar,
+      isBot: true,
+      ownerId: 'cpu',
+      ready: true,
+      placements: fleet.placements,
+      units: fleet.units,
+      hitsReceived: [],
+      missesReceived: [],
+      score: 0,
+      hitsInflicted: 0,
+      eliminated: false
+    };
+    const nextPlayers = [...players, newBot];
+    setPlayers(nextPlayers);
+    sound.playCorrect();
+    syncFullGame({ players: nextPlayers });
+  };
+
+  // Remove a Bot or offline player (keep at least 2 total players)
+  const handleRemovePlayer = (id) => {
+    if (players.length <= 2 || id === myPlayerId) return;
+    const nextPlayers = players.filter(p => p.id !== id);
+    setPlayers(nextPlayers);
+    syncFullGame({ players: nextPlayers });
+  };
+
+  // Copy shareable link for online players to join
   const handleShareLink = () => {
     const baseUrl = window.location.origin + window.location.pathname;
     const params = new URLSearchParams({
@@ -314,7 +513,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     setTimeout(() => setCopiedLink(false), 3500);
   };
 
-  // Change grid size and regenerate fleets cleanly
+  // Change grid size and regenerate fleets
   const handleChangeGridSize = (newSize) => {
     setGridSize(newSize);
     const updated = players.map(p => {
@@ -334,100 +533,49 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     syncFullGame({ gridSize: newSize, players: updated });
   };
 
-  // Add a new player / user to the battle
-  const handleAddPlayer = (e) => {
-    e.preventDefault();
-    const trimmed = newPlayerName.trim();
-    if (!trimmed) return;
-
+  // Randomize ONLY my own fleet
+  const handleRandomizeMyFleet = () => {
     const fleet = generateRandomFleet(gridSize);
-    const newPlayer = {
-      id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-      name: trimmed,
-      avatar: newPlayerAvatar,
-      placements: fleet.placements,
-      units: fleet.units,
-      hitsReceived: [],
-      missesReceived: [],
-      score: 0,
-      hitsInflicted: 0,
-      eliminated: false
-    };
-
-    const nextPlayers = [...players, newPlayer];
-    setPlayers(nextPlayers);
-    setEditingPlayerId(newPlayer.id);
-    setNewPlayerName('');
-    // Pick next avatar
-    const nextAvatarIdx = (PLAYER_AVATARS.indexOf(newPlayerAvatar) + 1) % PLAYER_AVATARS.length;
-    setNewPlayerAvatar(PLAYER_AVATARS[nextAvatarIdx]);
-    sound.playCorrect();
-    syncFullGame({ players: nextPlayers });
-  };
-
-  // Remove a player (minimum 2 players)
-  const handleRemovePlayer = (id) => {
-    if (players.length <= 2) return;
-    const nextPlayers = players.filter(p => p.id !== id);
-    setPlayers(nextPlayers);
-    if (editingPlayerId === id) {
-      setEditingPlayerId(nextPlayers[0].id);
-    }
-    syncFullGame({ players: nextPlayers });
-  };
-
-  // Randomize a single player's fleet
-  const handleRandomizePlayerFleet = (playerId) => {
-    const fleet = generateRandomFleet(gridSize);
-    const nextPlayers = players.map(p =>
-      p.id === playerId
-        ? { ...p, placements: fleet.placements, units: fleet.units }
-        : p
-    );
+    const updatedMe = { ...myPlayer, placements: fleet.placements, units: fleet.units };
+    const nextPlayers = players.map(p => (p.id === myPlayer.id ? updatedMe : p));
     setPlayers(nextPlayers);
     sound.playTick();
-    syncFullGame({ players: nextPlayers });
+    broadcastRoomPayload('PLAYER_UPSERT', { player: updatedMe });
   };
 
-  // Clear a single player's fleet so they can place units manually
-  const handleClearPlayerFleet = (playerId) => {
-    const nextPlayers = players.map(p =>
-      p.id === playerId
-        ? { ...p, placements: {}, units: {} }
-        : p
-    );
+  // Clear ONLY my own fleet so I can place units manually
+  const handleClearMyFleet = () => {
+    const updatedMe = { ...myPlayer, placements: {}, units: {} };
+    const nextPlayers = players.map(p => (p.id === myPlayer.id ? updatedMe : p));
     setPlayers(nextPlayers);
     setSelectedUnitId(SCOUT_FLEET_TEMPLATES[0].id);
-    syncFullGame({ players: nextPlayers });
+    broadcastRoomPayload('PLAYER_UPSERT', { player: updatedMe });
   };
 
-  // Manual placement on the setup board
-  const handleSetupCellClick = (rowLetter, colNum) => {
-    const editingPlayer = players.find(p => p.id === editingPlayerId);
-    if (!editingPlayer) return;
-
+  // Manual placement on MY OWN secret setup board
+  const handleMyBoardCellClick = (rowLetter, colNum) => {
+    if (!myPlayer) return;
     const clickedCoord = `${rowLetter}${colNum}`;
 
-    // If clicking an already placed unit, remove that unit so the user can relocate it
-    const existingAtCell = editingPlayer.placements[clickedCoord];
+    // If clicking an already placed unit on my board, lift it so I can relocate it
+    const existingAtCell = myPlayer.placements?.[clickedCoord];
     if (existingAtCell) {
       const unitIdToRemove = existingAtCell.unitId;
-      const newPlacements = { ...editingPlayer.placements };
+      const newPlacements = { ...myPlayer.placements };
       Object.keys(newPlacements).forEach(c => {
         if (newPlacements[c].unitId === unitIdToRemove) {
           delete newPlacements[c];
         }
       });
-      const newUnits = { ...editingPlayer.units };
+      const newUnits = { ...myPlayer.units };
       delete newUnits[unitIdToRemove];
 
-      const nextPlayers = players.map(p =>
-        p.id === editingPlayerId ? { ...p, placements: newPlacements, units: newUnits } : p
-      );
+      const updatedMe = { ...myPlayer, placements: newPlacements, units: newUnits };
+      const nextPlayers = players.map(p => (p.id === myPlayer.id ? updatedMe : p));
       setPlayers(nextPlayers);
       setSelectedUnitId(unitIdToRemove);
       sound.playTick();
-      syncFullGame({ players: nextPlayers });
+      broadcastRoomPayload('PLAYER_UPSERT', { player: updatedMe });
       return;
     }
 
@@ -446,8 +594,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
         return; // Out of bounds
       }
       const coord = `${rows[rr]}${cc + 1}`;
-      // Check collision with OTHER units
-      const occ = editingPlayer.placements[coord];
+      const occ = myPlayer.placements?.[coord];
       if (occ && occ.unitId !== template.id) {
         sound.playWrong();
         return;
@@ -455,8 +602,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
       candidateCoords.push(coord);
     }
 
-    // Remove previous placement of this same unit if it was already placed
-    const newPlacements = { ...editingPlayer.placements };
+    const newPlacements = { ...myPlayer.placements };
     Object.keys(newPlacements).forEach(c => {
       if (newPlacements[c].unitId === template.id) {
         delete newPlacements[c];
@@ -473,36 +619,53 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     });
 
     const newUnits = {
-      ...editingPlayer.units,
+      ...myPlayer.units,
       [template.id]: {
         ...template,
         coords: candidateCoords
       }
     };
 
-    const nextPlayers = players.map(p =>
-      p.id === editingPlayerId ? { ...p, placements: newPlacements, units: newUnits } : p
-    );
+    const updatedMe = { ...myPlayer, placements: newPlacements, units: newUnits };
+    const nextPlayers = players.map(p => (p.id === myPlayer.id ? updatedMe : p));
     setPlayers(nextPlayers);
     sound.playCorrect();
 
-    // Auto-select next unplaced unit if any
     const nextUnplaced = SCOUT_FLEET_TEMPLATES.find(u => !newUnits[u.id]);
     if (nextUnplaced) {
       setSelectedUnitId(nextUnplaced.id);
     }
 
-    syncFullGame({ players: nextPlayers });
+    broadcastRoomPayload('PLAYER_UPSERT', { player: updatedMe });
   };
 
-  // Start the Battle! (Auto-completes any incomplete player fleet so nobody starts with 0 ships)
+  // Start the Battle!
   const handleStartBattle = () => {
-    if (players.length < 2) return;
+    let currentRoster = [...players];
+    // Ensure at least 2 players (if only 1 human, auto-add a Computer Bot!)
+    if (currentRoster.length < 2) {
+      const botFleet = generateRandomFleet(gridSize);
+      currentRoster.push({
+        id: `bot-${Date.now()}`,
+        name: 'Bot Capitán Nutria (PC)',
+        avatar: '🦦',
+        isBot: true,
+        ownerId: 'cpu',
+        ready: true,
+        placements: botFleet.placements,
+        units: botFleet.units,
+        hitsReceived: [],
+        missesReceived: [],
+        score: 0,
+        hitsInflicted: 0,
+        eliminated: false
+      });
+    }
 
-    const readyPlayers = players.map(p => {
+    const readyPlayers = currentRoster.map(p => {
       const placedCount = Object.keys(p.placements || {}).length;
-      if (placedCount < TOTAL_FLEET_CELLS) {
-        const autoFleet = generateRandomFleet(gridSize);
+      if (placedCount < TOTAL_FLEET_CELLS || p.isBot) {
+        const autoFleet = p.isBot ? generateRandomFleet(gridSize) : (placedCount < TOTAL_FLEET_CELLS ? generateRandomFleet(gridSize) : { placements: p.placements, units: p.units });
         return {
           ...p,
           placements: autoFleet.placements,
@@ -530,8 +693,6 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     setLastStrikeReport(null);
     setBattleLog([]);
     setWinner(null);
-    setPeekPlayerId(null);
-    setRevealAllBoards(false);
     setPhase('battle');
     sound.playBadgeEarned();
 
@@ -546,12 +707,11 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     });
   };
 
-  // CORE MECHANIC: Fire at a coordinate (e.g. "C4") -> ALL other players (or all players in coordinator mode) who have something at C4 lose that position!
+  // CORE MECHANIC: Fire at a coordinate (e.g. "C4") -> ALL OTHER players (human or Bot) who have something at C4 lose that position!
   const handleFireCoordinate = (coordInput) => {
     if (phase !== 'battle') return;
     const coord = (coordInput || `${selectedRow}${selectedCol}`).toUpperCase().trim();
     if (!coord || calledCoords[coord]) {
-      sound.playWrong();
       return;
     }
 
@@ -582,13 +742,11 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
           ? player.hitsReceived
           : [...player.hitsReceived, coord];
 
-        // Check if this specific ship/unit is now completely sunk
         const unitObj = player.units?.[targetCell.unitId];
         const isUnitSunk = unitObj
           ? unitObj.coords.every(c => nextHits.includes(c))
           : false;
 
-        // Check if ALL fleet cells of this player are now hit -> Player Eliminated!
         const totalPlaced = Object.keys(player.placements || {}).length || TOTAL_FLEET_CELLS;
         const isNowEliminated = nextHits.length >= totalPlaced;
 
@@ -600,8 +758,9 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
           playerId: player.id,
           playerName: player.name,
           playerAvatar: player.avatar,
-          unitName: targetCell.name,
-          unitEmoji: targetCell.emoji,
+          // Keep exact unit name private until sunk unless it's sunk!
+          unitName: isUnitSunk ? targetCell.name : 'Unidad Tocada',
+          unitEmoji: isUnitSunk ? targetCell.emoji : '💥',
           sunk: isUnitSunk,
           eliminated: isNowEliminated,
           remainingCells: Math.max(0, totalPlaced - nextHits.length)
@@ -630,7 +789,6 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
       }
     });
 
-    // Credit points & hits inflicted to the shooter in turn mode
     const finalPlayers = updatedPlayers.map((p, idx) => {
       if (isTurnMode && idx === currentTurnIdx) {
         return {
@@ -639,7 +797,6 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
           hitsInflicted: p.hitsInflicted + totalHitsOnCoord
         };
       }
-      // Also give survival points (+25 pts) to every non-eliminated player who wasn't hit
       const wasHit = hitsList.some(h => h.playerId === p.id);
       if (!p.eliminated && !wasHit) {
         return {
@@ -672,9 +829,6 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
 
     const nextBattleLog = [report, ...battleLog].slice(0, 30);
 
-    // Check if the game has ended:
-    // 1. Only 1 (or 0) players remain non-eliminated, OR
-    // 2. All coordinates on the grid have been called
     const alivePlayers = finalPlayers.filter(p => !p.eliminated);
     const allCoordsCount = gridSize * gridSize;
     const isGameOver = alivePlayers.length <= 1 || Object.keys(nextCalledCoords).length >= allCoordsCount;
@@ -684,7 +838,6 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
 
     if (isGameOver) {
       nextPhase = 'finished';
-      // Determine winner: last alive player, or if 0 alive (simultaneous elimination in coordinator mode), player with highest score / most hits
       if (alivePlayers.length === 1) {
         gameWinner = alivePlayers[0];
       } else {
@@ -704,7 +857,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
         origin: { y: 0.6 }
       });
 
-      if (gameWinner) {
+      if (gameWinner && !gameWinner.isBot) {
         sheetService.addScore({
           jugador: gameWinner.name,
           grupo: activeContext?.grupo || currentUser?.grupo || 'Grupo Scout',
@@ -749,7 +902,82 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     });
   };
 
-  // Pick a random uncalled coordinate and fire
+  // Pick a smart coordinate for Bot AI (prioritizes adjacent cells to previous hits that didn't belong to the bot itself)
+  const pickSmartBotCoordinate = (botPlayer) => {
+    const available = [];
+    for (const r of rows) {
+      for (const c of cols) {
+        const coord = `${r}${c}`;
+        if (!calledCoords[coord]) {
+          available.push(coord);
+        }
+      }
+    }
+    if (available.length === 0) return null;
+
+    // Prefer coordinates where the bot itself does NOT have a ship (though in turns_others mode the shooter doesn't hurt themselves anyway),
+    // and check adjacent to previous hits on other players!
+    const hitCoords = Object.keys(calledCoords).filter(c => {
+      const rep = calledCoords[c];
+      return rep && rep.hits && rep.hits.some(h => h.playerId !== botPlayer.id && !h.sunk);
+    });
+
+    const neighborCandidates = [];
+    for (const hCoord of hitCoords) {
+      const rLetter = hCoord.charAt(0);
+      const cNum = parseInt(hCoord.slice(1), 10);
+      const rIdx = rows.indexOf(rLetter);
+      const deltas = [
+        [rIdx - 1, cNum],
+        [rIdx + 1, cNum],
+        [rIdx, cNum - 1],
+        [rIdx, cNum + 1]
+      ];
+      for (const [nr, nc] of deltas) {
+        if (nr >= 0 && nr < gridSize && nc >= 1 && nc <= gridSize) {
+          const cand = `${rows[nr]}${nc}`;
+          if (!calledCoords[cand]) {
+            neighborCandidates.push(cand);
+          }
+        }
+      }
+    }
+
+    if (neighborCandidates.length > 0) {
+      return neighborCandidates[Math.floor(Math.random() * neighborCandidates.length)];
+    }
+
+    return available[Math.floor(Math.random() * available.length)];
+  };
+
+  // AUTOMATIC COMPUTER (BOT) TURN EXECUTION
+  useEffect(() => {
+    if (phase !== 'battle' || strikeMode !== 'turns_others') {
+      setBotThinking(false);
+      return;
+    }
+
+    const activePlayer = players[currentTurnIdx];
+    if (!activePlayer || !activePlayer.isBot || activePlayer.eliminated) {
+      setBotThinking(false);
+      return;
+    }
+
+    setBotThinking(true);
+    const timer = setTimeout(() => {
+      const chosenCoord = pickSmartBotCoordinate(activePlayer);
+      setBotThinking(false);
+      if (chosenCoord) {
+        setSelectedRow(chosenCoord.charAt(0));
+        setSelectedCol(parseInt(chosenCoord.slice(1), 10));
+        handleFireCoordinate(chosenCoord);
+      }
+    }, 1250);
+
+    return () => clearTimeout(timer);
+  }, [phase, strikeMode, currentTurnIdx, players, calledCoords]);
+
+  // Pick a random uncalled coordinate and fire manually
   const handleFireRandomCoordinate = () => {
     const available = [];
     for (const r of rows) {
@@ -767,8 +995,8 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
     handleFireCoordinate(randomCoord);
   };
 
-  const editingPlayer = players.find(p => p.id === editingPlayerId) || players[0];
   const activeShooter = players[currentTurnIdx] || players[0];
+  const isMyTurn = strikeMode === 'coordinator_all' || (activeShooter && activeShooter.id === myPlayer?.id);
 
   return (
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-4 pb-20 md:pb-8 animate-in fade-in duration-300">
@@ -790,13 +1018,13 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-black border border-cyan-400/40 mb-1">
                 <Anchor className="w-3 h-3" />
-                <span>TODOS CONTRA TODOS POR POSICIÓN • SALA {roomCode}</span>
+                <span>EN LÍNEA POR LINK O VS COMPUTADORA • SALA {roomCode}</span>
               </div>
               <h1 className="text-xl sm:text-3xl font-heading font-black text-white">
                 Batalla Naval Scout 3D
               </h1>
               <p className="text-xs text-slate-300 max-w-2xl">
-                Suma a todos los usuarios o patrullas que quieras: cada vez que se indica una coordenada (ej. <strong className="text-amber-300">C-4</strong>), ¡pierden esa posición <strong>todos los demás usuarios</strong> que tengan algo ubicado allí!
+                Cada jugador ve <strong>únicamente su propio tablero secreto</strong>. Juega en línea compartiendo el link o contra <strong>🤖 Bots de Computadora automáticos</strong>: cada vez que se indica una posición, pierden todos los demás que tengan algo allí.
               </p>
             </div>
           </div>
@@ -819,7 +1047,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
               className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 font-heading font-black text-xs flex items-center gap-1.5 btn-3d"
             >
               {copiedLink ? <CheckCircle2 className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-              <span>{copiedLink ? '¡Link Copiado!' : 'Compartir Link de Sala'}</span>
+              <span>{copiedLink ? '¡Link Copiado!' : 'Invitar por Link en Línea'}</span>
             </button>
 
             {phase !== 'setup' && (
@@ -828,7 +1056,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                 className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 border border-slate-700"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Configurar Flotas</span>
+                <span>Sala / Mi Flota</span>
               </button>
             )}
           </div>
@@ -836,36 +1064,30 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
       </div>
 
       {/* =====================================================================
-          PHASE 1: SETUP (SUMAR USUARIOS Y UBICAR EMBARCACIONES / CAMPAMENTO)
+          PHASE 1: SETUP (MI TABLERO SECRETO + JUGADORES EN LÍNEA / BOTS PC)
       ===================================================================== */}
       {phase === 'setup' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Left Column: Add Users & Roster List */}
+          {/* Left Column: My Profile + Connected Online Players & Computer Bots */}
           <div className="lg:col-span-5 bg-slate-900/95 border-2 border-cyan-500/30 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col justify-between space-y-4">
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-cyan-400" />
-                  <h2 className="text-base sm:text-lg font-heading font-black text-white">
-                    1. Usuarios en la Partida ({players.length})
-                  </h2>
+              {/* My Identity Card */}
+              <div className="bg-cyan-950/40 p-3.5 rounded-2xl border border-cyan-500/40 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                    <User className="w-4 h-4" />
+                    <span>Tu Identidad en esta Sala</span>
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    🔒 Tu flota es privada
+                  </span>
                 </div>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  Mínimo 2 • Sin límite
-                </span>
-              </div>
 
-              {/* Add User Form */}
-              <form onSubmit={handleAddPlayer} className="bg-slate-950/90 p-3.5 rounded-2xl border border-slate-800 space-y-3">
-                <label className="text-xs font-black uppercase tracking-wider text-cyan-300 block">
-                  + Sumar Nuevo Usuario o Patrulla
-                </label>
                 <div className="flex items-center gap-2">
                   <select
-                    value={newPlayerAvatar}
-                    onChange={(e) => setNewPlayerAvatar(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-base outline-none"
-                    title="Elegir emblema"
+                    value={myPlayer?.avatar || myAvatarInput}
+                    onChange={(e) => handleUpdateMyProfile(myNameInput, e.target.value)}
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-base outline-none"
                   >
                     {PLAYER_AVATARS.map(av => (
                       <option key={av} value={av}>{av}</option>
@@ -873,20 +1095,39 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                   </select>
                   <input
                     type="text"
-                    value={newPlayerName}
-                    onChange={(e) => setNewPlayerName(e.target.value)}
-                    placeholder="Nombre del usuario o patrulla..."
+                    value={myNameInput}
+                    onChange={(e) => handleUpdateMyProfile(e.target.value, myPlayer?.avatar || myAvatarInput)}
+                    placeholder="Tu nombre o patrulla..."
                     className="flex-1 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl px-3 py-2 text-xs sm:text-sm text-white font-bold outline-none"
                   />
-                  <button
-                    type="submit"
-                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-heading font-black text-xs flex items-center gap-1 shrink-0 btn-3d"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Sumar</span>
-                  </button>
                 </div>
-              </form>
+              </div>
+
+              {/* Roster Header + Add Computer Bot Button */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-amber-400" />
+                  <h2 className="text-sm sm:text-base font-heading font-black text-white">
+                    Participantes en Sala ({players.length})
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddBot}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 text-xs font-black flex items-center gap-1 transition"
+                >
+                  <Bot className="w-3.5 h-3.5" />
+                  <span>+ Sumar Bot PC</span>
+                </button>
+              </div>
+
+              {/* Online Link Info Box */}
+              <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-300 flex items-start gap-2.5">
+                <Wifi className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong>¿Cómo jugar en línea o contra la PC?</strong> Si compartes el link de la sala, cada persona que entra arma su propio tablero desde su celular/PC sin ver el tuyo. También puedes dejar o sumar <strong>🤖 Bots de Computadora</strong> que juegan y disparan solos automáticamente.
+                </div>
+              </div>
 
               {/* Grid Size & Strike Mode Settings */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-950/70 p-3 rounded-2xl border border-slate-800">
@@ -914,34 +1155,33 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
 
                 <div>
                   <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">
-                    Regla al Indicar Posición
+                    Modo de Disparo
                   </label>
                   <select
                     value={strikeMode}
                     onChange={(e) => setStrikeMode(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-amber-300 outline-none"
                   >
-                    <option value="turns_others">🎯 Pierden TODOS los demás usuarios</option>
-                    <option value="coordinator_all">📢 Pierden TODOS (Modo Coordinador)</option>
+                    <option value="turns_others">🎯 Por Turnos (Ataca a los demás)</option>
+                    <option value="coordinator_all">📢 Modo Coordinador (Afecta a todos)</option>
                   </select>
                 </div>
               </div>
 
-              {/* Players List */}
-              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+              {/* Players List (Other players' positions are strictly hidden!) */}
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                 {players.map((p, idx) => {
+                  const isMe = p.id === myPlayer?.id;
                   const placedCells = Object.keys(p.placements || {}).length;
                   const isComplete = placedCells === TOTAL_FLEET_CELLS;
-                  const isEditing = p.id === editingPlayer?.id;
 
                   return (
                     <div
                       key={p.id}
-                      onClick={() => setEditingPlayerId(p.id)}
-                      className={`p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-2 ${
-                        isEditing
-                          ? 'bg-cyan-950/60 border-cyan-400 shadow-lg'
-                          : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
+                      className={`p-3 rounded-2xl border flex items-center justify-between gap-2 ${
+                        isMe
+                          ? 'bg-cyan-950/60 border-cyan-400 shadow-md'
+                          : 'bg-slate-950/80 border-slate-800'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -949,47 +1189,49 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                           {p.avatar}
                         </span>
                         <div className="min-w-0">
-                          <div className="text-xs sm:text-sm font-black text-white truncate">
-                            {idx + 1}. {p.name}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs sm:text-sm font-black text-white truncate">
+                              {idx + 1}. {p.name}
+                            </span>
+                            {isMe && (
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500 text-slate-950">
+                                TÚ
+                              </span>
+                            )}
+                            {p.isBot && (
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                🤖 IA AUTOMÁTICA
+                              </span>
+                            )}
+                            {!isMe && !p.isBot && (
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                🌐 EN LÍNEA
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              isComplete
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            }`}>
-                              {isComplete ? '✅ Flota Lista (14/14)' : `⚙️ ${placedCells}/${TOTAL_FLEET_CELLS} casillas`}
+                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                              <Lock className="w-3 h-3 text-emerald-400" />
+                              {isMe
+                                ? isComplete
+                                  ? 'Tu flota está lista (14/14)'
+                                  : `Ubicando: ${placedCells}/${TOTAL_FLEET_CELLS} casillas`
+                                : 'Posiciones ocultas y listas para jugar'}
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      {!isMe && players.length > 2 && (
                         <button
                           type="button"
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            handleRandomizePlayerFleet(p.id);
-                          }}
-                          className="p-2 rounded-xl bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-amber-300 transition text-xs font-bold"
-                          title="Ubicar flota al azar para este usuario"
+                          onClick={() => handleRemovePlayer(p.id)}
+                          className="p-2 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition shrink-0"
+                          title="Quitar de la sala"
                         >
-                          <Shuffle className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                        {players.length > 2 && (
-                          <button
-                            type="button"
-                            onClick={(ev) => {
-                              ev.stopPropagation();
-                              handleRemovePlayer(p.id);
-                            }}
-                            className="p-2 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition"
-                            title="Quitar usuario"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   );
                 })}
@@ -997,47 +1239,35 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
             </div>
 
             {/* Start Battle Button */}
-            <div className="pt-3 border-t border-slate-800 space-y-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const randomized = players.map(p => {
-                    const f = generateRandomFleet(gridSize);
-                    return { ...p, placements: f.placements, units: f.units };
-                  });
-                  setPlayers(randomized);
-                  sound.playCorrect();
-                  syncFullGame({ players: randomized });
-                }}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-500/30 transition"
-              >
-                <Shuffle className="w-4 h-4" />
-                <span>🎲 Mezclar Todas las Flotas en Secreto</span>
-              </button>
-
+            <div className="pt-3 border-t border-slate-800">
               <button
                 type="button"
                 onClick={handleStartBattle}
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-400 text-slate-950 font-heading font-black text-sm sm:text-base shadow-xl flex items-center justify-center gap-2 btn-3d"
               >
                 <Play className="w-5 h-5 fill-current" />
-                <span>¡INICIAR BATALLA NAVAL ({players.length} USUARIOS)!</span>
+                <span>¡INICIAR BATALLA NAVAL ({players.length} JUGADORES)!</span>
               </button>
             </div>
           </div>
 
-          {/* Right Column: Interactive Fleet Placement Grid for the Selected User */}
+          {/* Right Column: ONLY MY OWN Secret Fleet Placement Grid */}
           <div className="lg:col-span-7 bg-slate-900/95 border-2 border-cyan-500/30 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col justify-between">
             <div>
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{editingPlayer?.avatar}</span>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">{myPlayer?.avatar}</span>
                   <div>
-                    <h3 className="text-sm sm:text-base font-heading font-black text-white">
-                      2. Tablero Secreto de: <span className="text-cyan-300">{editingPlayer?.name}</span>
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-heading font-black text-white">
+                        Tu Tablero Secreto: <span className="text-cyan-300">{myPlayer?.name}</span>
+                      </h3>
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-950 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> Solo tú lo ves
+                      </span>
+                    </div>
                     <p className="text-[11px] text-slate-400">
-                      Haz clic en una casilla para ubicar o quitar unidades, o usa el botón de ubicación al azar.
+                      Nadie más puede ver dónde ubicas tus unidades. Toca las casillas para acomodarlas o mézclalas al azar.
                     </p>
                   </div>
                 </div>
@@ -1045,29 +1275,16 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setHideSetupBoard(!hideSetupBoard)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
-                      hideSetupBoard
-                        ? 'bg-amber-500 text-slate-950 border-amber-300 font-black'
-                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
-                    }`}
-                  >
-                    {hideSetupBoard ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                    <span>{hideSetupBoard ? 'Mostrar Tablero' : 'Ocultar (Pasar Turno)'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRandomizePlayerFleet(editingPlayer.id)}
+                    onClick={handleRandomizeMyFleet}
                     className="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500 text-cyan-300 hover:text-slate-950 border border-cyan-500/40 text-xs font-black transition flex items-center gap-1"
                   >
                     <Shuffle className="w-3.5 h-3.5" />
-                    <span>Al Azar</span>
+                    <span>Ubicar al Azar</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => handleClearPlayerFleet(editingPlayer.id)}
+                    onClick={handleClearMyFleet}
                     className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-300 text-xs font-bold transition"
                   >
                     Limpiar
@@ -1079,7 +1296,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4 bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
                 <div className="flex flex-wrap items-center gap-1.5">
                   {SCOUT_FLEET_TEMPLATES.map(unit => {
-                    const isPlaced = Boolean(editingPlayer?.units?.[unit.id]);
+                    const isPlaced = Boolean(myPlayer?.units?.[unit.id]);
                     const isSelected = selectedUnitId === unit.id;
                     return (
                       <button
@@ -1111,96 +1328,75 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                 </button>
               </div>
 
-              {/* Secret Curtain or Grid */}
-              {hideSetupBoard ? (
-                <div className="h-80 rounded-3xl bg-slate-950 border-2 border-dashed border-amber-500/40 flex flex-col items-center justify-center p-6 text-center space-y-3">
-                  <EyeOff className="w-12 h-12 text-amber-400 animate-bounce" />
-                  <h4 className="text-lg font-heading font-black text-white">
-                    Tablero Oculto para Pasar el Dispositivo
-                  </h4>
-                  <p className="text-xs text-slate-400 max-w-md">
-                    Las posiciones de <strong>{editingPlayer?.name}</strong> están protegidas. Selecciona al siguiente jugador en la lista izquierda y toca "Mostrar Tablero" cuando esté listo.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setHideSetupBoard(false)}
-                    className="px-5 py-2.5 rounded-xl bg-amber-500 text-slate-950 font-heading font-black text-xs btn-3d"
+              {/* My Secret Fleet Grid */}
+              <div className="overflow-x-auto pb-2">
+                <div className="inline-block min-w-full">
+                  <div
+                    className="grid gap-1 mb-1"
+                    style={{ gridTemplateColumns: `32px repeat(${gridSize}, minmax(34px, 1fr))` }}
                   >
-                    Revelar Tablero de {editingPlayer?.name}
-                  </button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto pb-2">
-                  <div className="inline-block min-w-full">
-                    {/* Column Headers */}
-                    <div
-                      className="grid gap-1 mb-1"
-                      style={{ gridTemplateColumns: `32px repeat(${gridSize}, minmax(34px, 1fr))` }}
-                    >
-                      <div className="text-center text-[10px] font-black text-slate-500 flex items-center justify-center">
-                        ⚓
+                    <div className="text-center text-[10px] font-black text-slate-500 flex items-center justify-center">
+                      ⚓
+                    </div>
+                    {cols.map(c => (
+                      <div
+                        key={c}
+                        className="text-center text-xs font-black text-cyan-300 bg-slate-950/90 py-1 rounded-lg border border-slate-800"
+                      >
+                        {c}
                       </div>
-                      {cols.map(c => (
-                        <div
-                          key={c}
-                          className="text-center text-xs font-black text-cyan-300 bg-slate-950/90 py-1 rounded-lg border border-slate-800"
-                        >
-                          {c}
-                        </div>
-                      ))}
-                    </div>
+                    ))}
+                  </div>
 
-                    {/* Rows */}
-                    <div className="space-y-1">
-                      {rows.map(r => (
-                        <div
-                          key={r}
-                          className="grid gap-1"
-                          style={{ gridTemplateColumns: `32px repeat(${gridSize}, minmax(34px, 1fr))` }}
-                        >
-                          <div className="text-xs font-black text-amber-300 bg-slate-950/90 rounded-lg border border-slate-800 flex items-center justify-center">
-                            {r}
-                          </div>
-                          {cols.map(c => {
-                            const coord = `${r}${c}`;
-                            const cellData = editingPlayer?.placements?.[coord];
-                            return (
-                              <button
-                                key={coord}
-                                type="button"
-                                onClick={() => handleSetupCellClick(r, c)}
-                                className={`h-9 sm:h-11 rounded-xl border text-xs font-black flex flex-col items-center justify-center transition ${
-                                  cellData
-                                    ? `${cellData.color} shadow-md scale-[1.02]`
-                                    : 'bg-[#071527] hover:bg-cyan-950/70 border-cyan-900/40 text-slate-500 hover:text-cyan-300'
-                                }`}
-                                title={`${coord} ${cellData ? `- ${cellData.name}` : '(Vacío)'}`}
-                              >
-                                {cellData ? (
-                                  <>
-                                    <span className="text-sm sm:text-base leading-none">{cellData.emoji}</span>
-                                    <span className="text-[9px] leading-none mt-0.5 opacity-85">{coord}</span>
-                                  </>
-                                ) : (
-                                  <span className="text-[10px] opacity-60">{coord}</span>
-                                )}
-                              </button>
-                            );
-                          })}
+                  <div className="space-y-1">
+                    {rows.map(r => (
+                      <div
+                        key={r}
+                        className="grid gap-1"
+                        style={{ gridTemplateColumns: `32px repeat(${gridSize}, minmax(34px, 1fr))` }}
+                      >
+                        <div className="text-xs font-black text-amber-300 bg-slate-950/90 rounded-lg border border-slate-800 flex items-center justify-center">
+                          {r}
                         </div>
-                      ))}
-                    </div>
+                        {cols.map(c => {
+                          const coord = `${r}${c}`;
+                          const cellData = myPlayer?.placements?.[coord];
+                          return (
+                            <button
+                              key={coord}
+                              type="button"
+                              onClick={() => handleMyBoardCellClick(r, c)}
+                              className={`h-9 sm:h-11 rounded-xl border text-xs font-black flex flex-col items-center justify-center transition ${
+                                cellData
+                                  ? `${cellData.color} shadow-md scale-[1.02]`
+                                  : 'bg-[#071527] hover:bg-cyan-950/70 border-cyan-900/40 text-slate-500 hover:text-cyan-300'
+                              }`}
+                              title={`${coord} ${cellData ? `- ${cellData.name}` : '(Vacío)'}`}
+                            >
+                              {cellData ? (
+                                <>
+                                  <span className="text-sm sm:text-base leading-none">{cellData.emoji}</span>
+                                  <span className="text-[9px] leading-none mt-0.5 opacity-85">{coord}</span>
+                                </>
+                              ) : (
+                                <span className="text-[10px] opacity-60">{coord}</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
               <span>
-                💡 Tip: Si tocas una embarcación ya puesta en el mapa, se levanta para que puedas reubicarla.
+                🔒 Las posiciones de los demás jugadores y de la Computadora son 100% invisibles.
               </span>
               <span className="font-bold text-cyan-300">
-                {Object.keys(editingPlayer?.placements || {}).length} / {TOTAL_FLEET_CELLS} casillas
+                {Object.keys(myPlayer?.placements || {}).length} / {TOTAL_FLEET_CELLS} casillas
               </span>
             </div>
           </div>
@@ -1217,7 +1413,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
             <div className="bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-cyan-500/20 border-2 border-amber-400 rounded-3xl p-5 sm:p-6 text-center shadow-2xl animate-in zoom-in duration-300">
               <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-400 text-slate-950 font-black text-xs mb-2">
                 <Trophy className="w-4 h-4" />
-                <span>¡VICTORIA NAVAL SCOUT!</span>
+                <span>¡FIN DEL COMBATE NAVAL!</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-heading font-black text-white">
                 {winner.avatar} ¡{winner.name} Gana la Batalla Naval!
@@ -1233,19 +1429,19 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                   🔄 Jugar Revancha Rápida
                 </button>
                 <button
-                  onClick={() => setRevealAllBoards(true)}
+                  onClick={() => setPhase('setup')}
                   className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 font-bold text-xs"
                 >
-                  🔓 Ver Todos los Tableros
+                  ⚓ Cambiar Mi Flota / Sala
                 </button>
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {/* Left / Center: Master Radar Grid & Coordinate Launcher */}
+            {/* Left / Center: Master Attack Radar (Shows ONLY called positions — NEVER opponent ships!) */}
             <div className="lg:col-span-7 bg-slate-900/95 border-2 border-cyan-500/40 rounded-3xl p-4 sm:p-5 shadow-2xl space-y-4">
-              {/* Active Turn / Mode Bar */}
+              {/* Active Turn / Bot Auto-Play Banner */}
               <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-950/90 p-3.5 rounded-2xl border border-cyan-900/60">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-2xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-2xl shadow-inner">
@@ -1253,20 +1449,26 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                   </div>
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-wider text-cyan-400">
-                      {strikeMode === 'turns_others'
-                        ? 'TURNO DE DISPARO (ATACA A TODOS LOS DEMÁS USUARIOS)'
-                        : 'MODO COORDINADOR (LA POSICIÓN AFECTA A TODOS)'}
+                      {botThinking
+                        ? '🤖 LA COMPUTADORA ESTÁ APUNTANDO EL RADAR...'
+                        : isMyTurn
+                        ? '🎯 ¡ES TU TURNO DE ATACAR!'
+                        : `⏳ TURNO EN LÍNEA DE ${activeShooter?.name?.toUpperCase()}`}
                     </div>
                     <div className="text-base sm:text-xl font-heading font-black text-amber-300">
                       {strikeMode === 'turns_others'
-                        ? `${activeShooter?.name} indica una posición`
+                        ? activeShooter?.isBot
+                          ? `${activeShooter?.name} está eligiendo coordenada...`
+                          : isMyTurn
+                          ? 'Elige una coordenada para atacar a todos los demás'
+                          : `Esperando disparo de ${activeShooter?.name}...`
                         : 'El Coordinador indica una posición'}
                     </div>
                   </div>
                 </div>
 
                 {/* Quick Coordinate Selector & Fire Button */}
-                {phase === 'battle' && (
+                {phase === 'battle' && !activeShooter?.isBot && (
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="flex items-center gap-1 bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-700">
                       <select
@@ -1322,7 +1524,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
                       <Crosshair className="w-4 h-4 text-rose-400" />
-                      <span>Posición Indicada: <strong className="text-base text-white bg-slate-900 px-2.5 py-0.5 rounded-lg border border-amber-400/50 ml-1">{lastStrikeReport.coord}</strong></span>
+                      <span>Posición Atacada: <strong className="text-base text-white bg-slate-900 px-2.5 py-0.5 rounded-lg border border-amber-400/50 ml-1">{lastStrikeReport.coord}</strong></span>
                     </span>
                     <span className="text-[11px] text-slate-300 font-bold">
                       Disparó: {lastStrikeReport.callerName}
@@ -1332,7 +1534,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                   {lastStrikeReport.hits.length > 0 ? (
                     <div className="space-y-1.5">
                       <div className="text-xs font-black text-rose-300">
-                        💥 ¡{lastStrikeReport.hits.length} {lastStrikeReport.hits.length === 1 ? 'usuario tenía' : 'usuarios tenían'} algo en {lastStrikeReport.coord} y pierden esa posición!
+                        💥 ¡{lastStrikeReport.hits.length} {lastStrikeReport.hits.length === 1 ? 'jugador tenía' : 'jugadores tenían'} algo en {lastStrikeReport.coord} y pierden esa posición!
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {lastStrikeReport.hits.map((h, i) => (
@@ -1343,13 +1545,8 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                             <span>{h.playerAvatar}</span>
                             <strong className="text-white">{h.playerName}:</strong>
                             <span className="text-amber-300 font-bold">
-                              {h.unitEmoji} {h.unitName}
+                              {h.sunk ? `${h.unitEmoji} ¡${h.unitName} HUNDIDO!` : '💥 ¡TOCADO!'}
                             </span>
-                            {h.sunk && (
-                              <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white font-black text-[10px]">
-                                ¡HUNDIDO!
-                              </span>
-                            )}
                             {h.eliminated && (
                               <span className="px-1.5 py-0.5 rounded bg-red-700 text-white font-black text-[10px]">
                                 💀 ¡ELIMINADO!
@@ -1362,7 +1559,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                   ) : (
                     <div className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
                       <Waves className="w-4 h-4" />
-                      <span>🌊 ¡Agua para todos! Ningún otro usuario tenía embarcaciones en {lastStrikeReport.coord}.</span>
+                      <span>🌊 ¡Agua para todos! Ningún rival tenía embarcaciones en {lastStrikeReport.coord}.</span>
                     </div>
                   )}
                 </div>
@@ -1373,16 +1570,15 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
                     <Compass className="w-4 h-4" />
-                    <span>Radar Maestro de Posiciones (Toca cualquier casilla para atacar)</span>
+                    <span>Radar de Ataque (Posiciones ocultas hasta disparar)</span>
                   </span>
                   <span className="text-[11px] font-bold text-slate-400">
-                    {Object.keys(calledCoords).length} / {gridSize * gridSize} posiciones cantadas
+                    {Object.keys(calledCoords).length} / {gridSize * gridSize} disparos
                   </span>
                 </div>
 
                 <div className="overflow-x-auto pb-2">
                   <div className="inline-block min-w-full">
-                    {/* Column Numbers */}
                     <div
                       className="grid gap-1.5 mb-1.5"
                       style={{ gridTemplateColumns: `32px repeat(${gridSize}, minmax(36px, 1fr))` }}
@@ -1400,7 +1596,6 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                       ))}
                     </div>
 
-                    {/* Radar Rows */}
                     <div className="space-y-1.5">
                       {rows.map(r => (
                         <div
@@ -1422,7 +1617,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                               <button
                                 key={coord}
                                 type="button"
-                                disabled={Boolean(report) || phase !== 'battle'}
+                                disabled={Boolean(report) || phase !== 'battle' || activeShooter?.isBot}
                                 onClick={() => {
                                   setSelectedRow(r);
                                   setSelectedCol(c);
@@ -1469,40 +1664,91 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
               </div>
             </div>
 
-            {/* Right Column: Live Status of All Players & Secret Board Inspector */}
+            {/* Right Column: MY OWN Secret Board + Encrypted Status of Rivals */}
             <div className="lg:col-span-5 space-y-4">
+              {/* My Own Board Mini-View (ONLY shows MY ships & where I was hit!) */}
+              {myPlayer && (
+                <div className="bg-slate-900/95 border-2 border-emerald-500/40 rounded-3xl p-4 shadow-xl space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{myPlayer.avatar}</span>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-heading font-black text-white">
+                          Mi Tablero Personal ({myPlayer.name})
+                        </h3>
+                        <p className="text-[10px] text-emerald-400 font-bold">
+                          🔒 Solo visible en tu pantalla • {Math.max(0, TOTAL_FLEET_CELLS - myPlayer.hitsReceived.length)}/{TOTAL_FLEET_CELLS} casillas sanas
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className="grid gap-1"
+                    style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(24px, 1fr))` }}
+                  >
+                    {rows.map(r =>
+                      cols.map(c => {
+                        const coord = `${r}${c}`;
+                        const myUnit = myPlayer.placements?.[coord];
+                        const wasHit = myPlayer.hitsReceived.includes(coord);
+                        const wasMissed = myPlayer.missesReceived.includes(coord);
+
+                        return (
+                          <div
+                            key={coord}
+                            className={`h-7 rounded-lg text-[9px] font-black flex items-center justify-center border ${
+                              wasHit
+                                ? 'bg-rose-600 border-rose-300 text-white animate-pulse'
+                                : myUnit
+                                ? 'bg-emerald-700/85 border-emerald-400 text-white'
+                                : wasMissed
+                                ? 'bg-sky-950/80 border-sky-800 text-sky-400'
+                                : 'bg-slate-950 border-slate-800 text-slate-500'
+                            }`}
+                            title={`${coord}: ${wasHit ? '¡Te dieron aquí!' : myUnit ? myUnit.name : 'Agua'}`}
+                          >
+                            {wasHit ? '💥' : myUnit ? myUnit.emoji : coord}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Status of All Players (Rival positions are 100% hidden!) */}
               <div className="bg-slate-900/95 border-2 border-cyan-500/40 rounded-3xl p-4 sm:p-5 shadow-2xl space-y-3.5">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
                     <ShieldAlert className="w-5 h-5 text-amber-400" />
-                    <h2 className="text-base sm:text-lg font-heading font-black text-white">
-                      Estado de Todos los Usuarios ({players.filter(p => !p.eliminated).length}/{players.length} a flote)
+                    <h2 className="text-sm sm:text-base font-heading font-black text-white">
+                      Flotas en Combate ({players.filter(p => !p.eliminated).length}/{players.length} activas)
                     </h2>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setRevealAllBoards(!revealAllBoards)}
-                    className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-cyan-300 border border-slate-700 flex items-center gap-1"
-                  >
-                    {revealAllBoards ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    <span>{revealAllBoards ? 'Ocultar Flotas' : 'Revelar Flotas'}</span>
-                  </button>
+                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                    <Lock className="w-3 h-3 text-cyan-400" /> Rivales ocultos
+                  </span>
                 </div>
 
-                {/* Cards for every player */}
-                <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
                   {players.map((p, idx) => {
                     const totalCells = Object.keys(p.placements || {}).length || TOTAL_FLEET_CELLS;
                     const remaining = Math.max(0, totalCells - p.hitsReceived.length);
                     const healthPct = Math.round((remaining / totalCells) * 100);
                     const isTurn = strikeMode === 'turns_others' && idx === currentTurnIdx && phase === 'battle';
-                    const isPeeking = peekPlayerId === p.id || revealAllBoards;
+                    const isMe = p.id === myPlayer?.id;
+
+                    // Count how many complete units this player has lost
+                    const sunkUnitsCount = SCOUT_FLEET_TEMPLATES.filter(u => {
+                      const pUnit = p.units?.[u.id];
+                      return pUnit && pUnit.coords.every(c => p.hitsReceived.includes(c));
+                    }).length;
 
                     return (
                       <div
                         key={p.id}
-                        className={`p-3.5 rounded-2xl border-2 transition ${
+                        className={`p-3 rounded-2xl border-2 transition ${
                           p.eliminated
                             ? 'bg-slate-950/60 border-red-900/50 opacity-75'
                             : isTurn
@@ -1517,22 +1763,27 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                             </span>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-sm font-black text-white truncate">
+                                <span className="text-xs sm:text-sm font-black text-white truncate">
                                   {p.name}
                                 </span>
-                                {isTurn && (
-                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">
-                                    🎯 SU TURNO
+                                {isMe && (
+                                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-cyan-500 text-slate-950">
+                                    TÚ
                                   </span>
                                 )}
-                                {p.eliminated && (
-                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-600 text-white">
-                                    FLOTA HUNDIDA
+                                {p.isBot && (
+                                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 border border-amber-500/30">
+                                    🤖 PC
+                                  </span>
+                                )}
+                                {isTurn && (
+                                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">
+                                    🎯 TURNO ACTIVO
                                   </span>
                                 )}
                               </div>
                               <div className="text-[11px] text-slate-400 font-bold mt-0.5">
-                                ⭐ {p.score} pts • 🎯 {p.hitsInflicted} impactos logrados
+                                ⭐ {p.score} pts • 🎯 {p.hitsInflicted} impactos • 🔥 {sunkUnitsCount}/5 hundidas
                               </div>
                             </div>
                           </div>
@@ -1543,18 +1794,14 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                             }`}>
                               {remaining}/{totalCells} ⚓
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setPeekPlayerId(peekPlayerId === p.id ? null : p.id)}
-                              className="text-[10px] font-bold text-cyan-400 hover:underline mt-0.5"
-                            >
-                              {isPeeking ? '🙈 Ocultar mapa' : '👁️ Ver mi mapa'}
-                            </button>
+                            <div className="text-[10px] text-slate-500 font-bold">
+                              {p.hitsReceived.length} impactos sufridos
+                            </div>
                           </div>
                         </div>
 
                         {/* Fleet Health Bar */}
-                        <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden mt-2.5 border border-slate-800">
+                        <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden mt-2 border border-slate-800">
                           <div
                             className={`h-full transition-all duration-300 ${
                               healthPct > 50
@@ -1566,74 +1813,6 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                             style={{ width: `${healthPct}%` }}
                           />
                         </div>
-
-                        {/* Status of the 5 Units */}
-                        <div className="flex flex-wrap gap-1.5 mt-2.5">
-                          {SCOUT_FLEET_TEMPLATES.map(unit => {
-                            const pUnit = p.units?.[unit.id];
-                            const hitsOnUnit = pUnit
-                              ? pUnit.coords.filter(c => p.hitsReceived.includes(c)).length
-                              : 0;
-                            const isSunk = pUnit && hitsOnUnit >= unit.size;
-
-                            return (
-                              <span
-                                key={unit.id}
-                                className={`text-[10px] px-2 py-0.5 rounded-lg border font-bold flex items-center gap-1 ${
-                                  isSunk
-                                    ? 'bg-red-950/60 border-red-600/60 text-red-300 line-through'
-                                    : hitsOnUnit > 0
-                                    ? 'bg-amber-950/60 border-amber-500/50 text-amber-300'
-                                    : 'bg-slate-900 border-slate-800 text-slate-300'
-                                }`}
-                                title={`${unit.name} (${unit.size - hitsOnUnit}/${unit.size})`}
-                              >
-                                <span>{unit.emoji}</span>
-                                <span>{unit.size - hitsOnUnit}/{unit.size}</span>
-                              </span>
-                            );
-                          })}
-                        </div>
-
-                        {/* Mini Map Preview when Player Peeks or Reveal All is active */}
-                        {isPeeking && (
-                          <div className="mt-3 pt-3 border-t border-slate-800">
-                            <div className="text-[10px] font-black text-amber-300 mb-1.5">
-                              Mapa de {p.name} (💥 Impactos sufridos: {p.hitsReceived.join(', ') || 'Ninguno'})
-                            </div>
-                            <div
-                              className="grid gap-1"
-                              style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(22px, 1fr))` }}
-                            >
-                              {rows.map(r =>
-                                cols.map(c => {
-                                  const coord = `${r}${c}`;
-                                  const unitAtCell = p.placements?.[coord];
-                                  const wasHit = p.hitsReceived.includes(coord);
-                                  const wasMissed = p.missesReceived.includes(coord);
-
-                                  return (
-                                    <div
-                                      key={coord}
-                                      className={`h-6 rounded text-[9px] font-black flex items-center justify-center border ${
-                                        wasHit
-                                          ? 'bg-rose-600 border-rose-300 text-white'
-                                          : unitAtCell
-                                          ? 'bg-emerald-700/80 border-emerald-400 text-white'
-                                          : wasMissed
-                                          ? 'bg-sky-950 border-sky-800 text-sky-400'
-                                          : 'bg-slate-900 border-slate-800 text-slate-500'
-                                      }`}
-                                      title={`${coord}: ${wasHit ? '¡Impactado!' : unitAtCell ? unitAtCell.name : 'Agua'}`}
-                                    >
-                                      {wasHit ? '💥' : unitAtCell ? unitAtCell.emoji : coord}
-                                    </div>
-                                  );
-                                })
-                              )}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -1644,9 +1823,9 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
               {battleLog.length > 0 && (
                 <div className="bg-slate-900/95 border border-slate-800 rounded-3xl p-4 space-y-2">
                   <div className="text-xs font-black uppercase tracking-wider text-slate-400">
-                    📜 Bitácora Naval de Coordenadas ({battleLog.length})
+                    📜 Bitácora Naval ({battleLog.length})
                   </div>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto text-xs pr-1">
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto text-xs pr-1">
                     {battleLog.map((entry, idx) => (
                       <div
                         key={idx}
@@ -1656,7 +1835,7 @@ export default function BatallaNavalScoutGame({ onBack, activeContext = {} }) {
                           <span className="font-mono font-black text-amber-300 mr-2">[{entry.coord}]</span>
                           {entry.hits.length > 0 ? (
                             <span className="text-rose-300 font-bold">
-                              💥 Tocó a: {entry.hits.map(h => `${h.playerName} (${h.unitEmoji})`).join(', ')}
+                              💥 Impactó a: {entry.hits.map(h => h.playerName).join(', ')}
                             </span>
                           ) : (
                             <span className="text-sky-400">🌊 Agua para todos</span>

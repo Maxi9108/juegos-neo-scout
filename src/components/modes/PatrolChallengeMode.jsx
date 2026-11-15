@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { CATEGORIES } from '../../data/categories';
 import { DEFAULT_QUESTIONS } from '../../data/defaultQuestions';
@@ -8,13 +8,13 @@ import BadgeBelt from '../BadgeBelt';
 import CrownModal from '../CrownModal';
 import { sound } from '../../utils/audio';
 import { sheetService } from '../../services/sheetService';
-import { Shield, Users, Trophy, Plus, Trash2, ArrowRight } from 'lucide-react';
+import { Shield, Users, Trophy, Plus, Trash2, ArrowRight, Bot } from 'lucide-react';
 
 const DEFAULT_PATROLS = [
-  { id: 'aguilas', name: 'Patrulla Águilas', totem: '🦅', color: '#10B981', badges: [], score: 0 },
-  { id: 'lobos', name: 'Patrulla Lobos', totem: '🐺', color: '#0284C7', badges: [], score: 0 },
-  { id: 'halcones', name: 'Patrulla Halcones', totem: '🪶', color: '#D97706', badges: [], score: 0 },
-  { id: 'jaguares', name: 'Patrulla Jaguares', totem: '🐆', color: '#EF4444', badges: [], score: 0 }
+  { id: 'aguilas', name: 'Patrulla Águilas (Tú)', totem: '🦅', color: '#10B981', badges: [], score: 0, isBot: false },
+  { id: 'lobos', name: 'Patrulla Lobos (PC)', totem: '🐺', color: '#0284C7', badges: [], score: 0, isBot: true },
+  { id: 'halcones', name: 'Patrulla Halcones (PC)', totem: '🪶', color: '#D97706', badges: [], score: 0, isBot: true },
+  { id: 'jaguares', name: 'Patrulla Jaguares (PC)', totem: '🐆', color: '#EF4444', badges: [], score: 0, isBot: true }
 ];
 
 export default function PatrolChallengeMode({ questions, activeContext = {} }) {
@@ -169,6 +169,49 @@ export default function PatrolChallengeMode({ questions, activeContext = {} }) {
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
   };
 
+  // Automatic Computer Turn Execution when currentPatrol.isBot is true
+  useEffect(() => {
+    if (isConfiguring || !currentPatrol?.isBot || gameState === 'victory') return;
+
+    if (gameState === 'spin' && !isSpinning) {
+      const t = setTimeout(() => {
+        // Simulate wheel spin for Bot
+        setIsSpinning(true);
+        sound.playTick();
+        setTimeout(() => {
+          setIsSpinning(false);
+          const unowned = CATEGORIES.filter(c => !currentPatrol.badges.includes(c.id));
+          const pool = unowned.length > 0 ? unowned : CATEGORIES;
+          const randomCat = pool[Math.floor(Math.random() * pool.length)];
+          const isCrown = Math.random() < 0.25;
+          if (isCrown) {
+            handleSelectCrownCategory(randomCat.id);
+          } else {
+            handleSpinComplete(randomCat);
+          }
+        }, 900);
+      }, 900);
+      return () => clearTimeout(t);
+    }
+
+    if (gameState === 'choose_crown') {
+      const t = setTimeout(() => {
+        const unowned = CATEGORIES.filter(c => !currentPatrol.badges.includes(c.id));
+        const chosen = (unowned[0] || CATEGORIES[0]).id;
+        handleSelectCrownCategory(chosen);
+      }, 900);
+      return () => clearTimeout(t);
+    }
+
+    if (gameState === 'question' && currentQuestion) {
+      const t = setTimeout(() => {
+        const botCorrect = Math.random() < 0.7;
+        handleAnswer({ isCorrect: botCorrect });
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [isConfiguring, currentPatrolIndex, currentPatrol?.isBot, gameState, isSpinning, currentQuestion]);
+
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-4">
       {isConfiguring && (
@@ -204,6 +247,21 @@ export default function PatrolChallengeMode({ questions, activeContext = {} }) {
                   }}
                   className="bg-transparent border-b border-slate-700 focus:border-amber-400 px-2 py-1 text-slate-100 font-bold text-sm flex-1 outline-none"
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newPatrols = [...patrols];
+                    newPatrols[index].isBot = !newPatrols[index].isBot;
+                    setPatrols(newPatrols);
+                  }}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-black border transition ${
+                    patrol.isBot
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                  }`}
+                >
+                  {patrol.isBot ? '🤖 Computadora' : '👤 Humano'}
+                </button>
                 {patrols.length > 2 && (
                   <button
                     onClick={() => handleRemovePatrol(index)}

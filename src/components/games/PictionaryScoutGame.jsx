@@ -55,6 +55,70 @@ const COLORS = [
   '#070e1c' // Borrador (mismo color del fondo)
 ];
 
+// Pre-built step-by-step vector drawings for "🤖 Bot Dibujante (PC)" mode (700x420 canvas)
+const BOT_VECTOR_DRAWINGS = [
+  {
+    word: 'Carpa Iglú',
+    cat: 'Campismo ⛺',
+    strokes: [
+      { color: '#10B981', size: 6, points: [[150, 320], [550, 320]] },
+      { color: '#38BDF8', size: 7, points: [[180, 320], [220, 200], [350, 130], [480, 200], [520, 320]] },
+      { color: '#FACC15', size: 5, points: [[280, 320], [350, 210], [420, 320]] },
+      { color: '#FFFFFF', size: 4, points: [[180, 320], [130, 345]] },
+      { color: '#FFFFFF', size: 4, points: [[520, 320], [570, 345]] }
+    ]
+  },
+  {
+    word: 'Fogata en Pirámide',
+    cat: 'Campismo 🔥',
+    strokes: [
+      { color: '#F97316', size: 8, points: [[220, 330], [480, 280]] },
+      { color: '#F97316', size: 8, points: [[480, 330], [220, 280]] },
+      { color: '#EF4444', size: 6, points: [[280, 280], [350, 120], [420, 280]] },
+      { color: '#FACC15', size: 6, points: [[310, 270], [350, 150], [390, 270]] },
+      { color: '#FFFFFF', size: 5, points: [[200, 340], [250, 350], [350, 355], [450, 350], [500, 340]] }
+    ]
+  },
+  {
+    word: 'Fin de Pista',
+    cat: 'Rastreo 🐾',
+    strokes: [
+      { color: '#FACC15', size: 7, points: [[350, 100], [430, 120], [470, 200], [430, 280], [350, 300], [270, 280], [230, 200], [270, 120], [350, 100]] },
+      { color: '#EF4444', size: 14, points: [[348, 200], [352, 200]] }
+    ]
+  },
+  {
+    word: 'Brújula Magnética',
+    cat: 'Orientación 🧭',
+    strokes: [
+      { color: '#38BDF8', size: 7, points: [[350, 90], [440, 130], [470, 210], [440, 290], [350, 330], [260, 290], [230, 210], [260, 130], [350, 90]] },
+      { color: '#EF4444', size: 6, points: [[350, 210], [330, 210], [350, 120], [370, 210], [350, 210]] },
+      { color: '#FFFFFF', size: 6, points: [[350, 210], [330, 210], [350, 300], [370, 210]] },
+      { color: '#FACC15', size: 5, points: [[340, 75], [340, 55], [360, 75], [360, 55]] }
+    ]
+  },
+  {
+    word: 'Torre Mangrullo',
+    cat: 'Pionerismo 🗼',
+    strokes: [
+      { color: '#F97316', size: 7, points: [[250, 350], [310, 120]] },
+      { color: '#F97316', size: 7, points: [[450, 350], [390, 120]] },
+      { color: '#FACC15', size: 6, points: [[280, 120], [420, 120], [420, 90], [280, 90], [280, 120]] },
+      { color: '#FACC15', size: 5, points: [[270, 280], [410, 200]] },
+      { color: '#FACC15', size: 5, points: [[430, 280], [290, 200]] }
+    ]
+  },
+  {
+    word: 'Canoa Rover',
+    cat: 'Aventura 🛶',
+    strokes: [
+      { color: '#38BDF8', size: 5, points: [[120, 300], [250, 320], [450, 300], [580, 320]] },
+      { color: '#F97316', size: 7, points: [[160, 230], [240, 290], [460, 290], [540, 230], [160, 230]] },
+      { color: '#FACC15', size: 6, points: [[320, 160], [380, 310]] }
+    ]
+  }
+];
+
 function normalizeAnswer(str) {
   return String(str || '')
     .toLowerCase()
@@ -424,16 +488,52 @@ export default function PictionaryScoutGame({ onBack, activeContext = {} }) {
       customObj || PICTIONARY_WORDS[Math.floor(Math.random() * PICTIONARY_WORDS.length)];
     setCurrentWordObj(next);
     setWinnerBanner(null);
-    setShowSecret(true);
+    setShowSecret(playerRole === 'drawer');
     setTimeLeft(60);
     setTimerActive(true);
     clearCanvas(false);
     publishRoomEvent({
       type: 'NEW_WORD',
       wordObj: next,
-      drawerName: playerName
+      drawerName: playerRole === 'bot_drawer' ? '🤖 Bot Pinto (PC)' : playerName
     });
   };
+
+  // Start a new Bot Drawing round
+  const startBotDrawingRound = useCallback(() => {
+    const chosen = BOT_VECTOR_DRAWINGS[Math.floor(Math.random() * BOT_VECTOR_DRAWINGS.length)];
+    setCurrentWordObj({ word: chosen.word, cat: chosen.cat, botStrokes: chosen.strokes });
+    setWinnerBanner(null);
+    setShowSecret(false);
+    setLastDrawerName('🤖 Bot Pinto (PC)');
+    setTimeLeft(60);
+    setTimerActive(true);
+    strokesHistoryRef.current = [];
+    redrawAllStrokes([]);
+  }, [redrawAllStrokes]);
+
+  // Progressive stroke drawing when playerRole === 'bot_drawer'
+  useEffect(() => {
+    if (playerRole !== 'bot_drawer' || winnerBanner) return;
+    const strokesToDraw = currentWordObj?.botStrokes || BOT_VECTOR_DRAWINGS[0].strokes;
+    let stepIdx = 0;
+    strokesHistoryRef.current = [];
+    redrawAllStrokes([]);
+
+    const interval = setInterval(() => {
+      if (stepIdx >= strokesToDraw.length) {
+        clearInterval(interval);
+        return;
+      }
+      const nextStroke = strokesToDraw[stepIdx];
+      stepIdx += 1;
+      strokesHistoryRef.current = [...strokesHistoryRef.current, nextStroke];
+      redrawAllStrokes(strokesHistoryRef.current);
+      sound.playTick();
+    }, 1100);
+
+    return () => clearInterval(interval);
+  }, [playerRole, currentWordObj, winnerBanner, redrawAllStrokes]);
 
   const handleSetCustomWord = (e) => {
     e.preventDefault();
@@ -672,17 +772,17 @@ export default function PictionaryScoutGame({ onBack, activeContext = {} }) {
 
       {/* Room Code + Role Switcher (Dibujante vs Adivinador) + Player Name */}
       <div className="bg-slate-900/95 border-2 border-slate-800 rounded-3xl p-4 mb-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-center card-3d">
-        <div className="md:col-span-5 flex items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+        <div className="md:col-span-6 flex flex-wrap items-center gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
           <button
             onClick={() => setPlayerRole('drawer')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-heading font-black flex items-center justify-center gap-1.5 transition ${
+            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-heading font-black flex items-center justify-center gap-1.5 transition ${
               playerRole === 'drawer'
                 ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 shadow'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Paintbrush className="w-4 h-4" />
-            <span>🎨 Soy el Dibujante</span>
+            <Paintbrush className="w-3.5 h-3.5" />
+            <span>🎨 Dibujar</span>
           </button>
 
           <button
@@ -690,18 +790,33 @@ export default function PictionaryScoutGame({ onBack, activeContext = {} }) {
               setPlayerRole('guesser');
               setShowSecret(false);
             }}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-heading font-black flex items-center justify-center gap-1.5 transition ${
+            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-heading font-black flex items-center justify-center gap-1.5 transition ${
               playerRole === 'guesser'
                 ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Eye className="w-4 h-4" />
-            <span>👀 Adivinar en Vivo</span>
+            <Eye className="w-3.5 h-3.5" />
+            <span>👀 Adivinar Link</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setPlayerRole('bot_drawer');
+              startBotDrawingRound();
+            }}
+            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-heading font-black flex items-center justify-center gap-1.5 transition ${
+              playerRole === 'bot_drawer'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>🤖 Bot Dibuja (vs PC)</span>
           </button>
         </div>
 
-        <div className="md:col-span-4 flex items-center gap-2">
+        <div className="md:col-span-3 flex items-center gap-2">
           <div className="flex-1">
             <label className="text-[10px] font-black uppercase text-slate-400 block mb-0.5">
               Tu Nombre / Patrulla
@@ -745,9 +860,9 @@ export default function PictionaryScoutGame({ onBack, activeContext = {} }) {
               </div>
             </div>
           </div>
-          {playerRole === 'drawer' && (
+          {(playerRole === 'drawer' || playerRole === 'bot_drawer') && (
             <button
-              onClick={() => pickRandomWord()}
+              onClick={() => (playerRole === 'bot_drawer' ? startBotDrawingRound() : pickRandomWord())}
               className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-heading font-black text-xs shrink-0"
             >
               Siguiente Palabra ➔
@@ -823,6 +938,16 @@ export default function PictionaryScoutGame({ onBack, activeContext = {} }) {
             <Clock className="w-4 h-4" />
             <span>{timeLeft}s</span>
           </div>
+
+          {playerRole === 'bot_drawer' && (
+            <button
+              onClick={startBotDrawingRound}
+              className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-heading font-black text-xs flex items-center gap-1.5 btn-3d"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>🤖 Otro Dibujo PC</span>
+            </button>
+          )}
 
           {playerRole === 'drawer' && (
             <>

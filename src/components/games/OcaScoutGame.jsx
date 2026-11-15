@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   XCircle,
   Smartphone,
-  LayoutGrid
+  LayoutGrid,
+  Bot
 } from 'lucide-react';
 import ScoutCharacter from '../characters/ScoutCharacter';
 import { sound } from '../../utils/audio';
@@ -148,10 +149,10 @@ const OCA_63_TILES = Array.from({ length: 63 }, (_, idx) => {
 });
 
 const INITIAL_TEAMS = [
-  { id: 0, name: 'Patrulla Halcones', emoji: '🦅', color: '#F59E0B', pos: 1 },
-  { id: 1, name: 'Patrulla Lobos', emoji: '🐺', color: '#0EA5E9', pos: 1 },
-  { id: 2, name: 'Patrulla Castores', emoji: '🦫', color: '#10B981', pos: 1 },
-  { id: 3, name: 'Patrulla Pumas', emoji: '🐾', color: '#EC4899', pos: 1 }
+  { id: 0, name: 'Patrulla Halcones (Tú)', emoji: '🦅', color: '#F59E0B', pos: 1, isBot: false },
+  { id: 1, name: 'Patrulla Lobos (PC)', emoji: '🐺', color: '#0EA5E9', pos: 1, isBot: true },
+  { id: 2, name: 'Patrulla Castores (PC)', emoji: '🦫', color: '#10B981', pos: 1, isBot: true },
+  { id: 3, name: 'Patrulla Pumas (PC)', emoji: '🐾', color: '#EC4899', pos: 1, isBot: true }
 ];
 
 function Die3D({ value, isRolling }) {
@@ -528,6 +529,35 @@ export default function OcaScoutGame({
     setLogMsg('¡Tablero en Espiral de 63 Casillas reiniciado! Todas las patrullas en la Salida (#1).');
   };
 
+  // Automatic AI Turn Execution when currentTeam.isBot is true
+  useEffect(() => {
+    if (!currentTeam?.isBot || winner || isRolling || isMoving) return;
+
+    if (!pendingTurn) {
+      const t = setTimeout(() => {
+        handleRoll();
+      }, 1000);
+      return () => clearTimeout(t);
+    }
+
+    if (pendingTurn && !pendingTurn.isResolved) {
+      const t = setTimeout(() => {
+        const botSucceeds = Math.random() < 0.72;
+        if (ocaMode === 'questions' && Array.isArray(pendingTurn.questionObj?.shuffledOptions)) {
+          const opts = pendingTurn.questionObj.shuffledOptions;
+          const targetIdx = botSucceeds
+            ? opts.findIndex(o => o.isCorrect)
+            : opts.findIndex(o => !o.isCorrect);
+          const safeIdx = targetIdx >= 0 ? targetIdx : 0;
+          handleSelectQuestionOption(opts[safeIdx], safeIdx);
+        } else {
+          resolveTurnOutcome(botSucceeds);
+        }
+      }, 1300);
+      return () => clearTimeout(t);
+    }
+  }, [turn, currentTeam?.isBot, winner, isRolling, isMoving, pendingTurn, ocaMode]);
+
   return (
     <div className="w-full max-w-[1440px] mx-auto p-1.5 sm:p-3 animate-in fade-in duration-300">
       {/* Top Header + Mode Switcher + Question Rotation Button */}
@@ -601,6 +631,33 @@ export default function OcaScoutGame({
               <span>{showCoordinatorConfig ? 'Cerrar Lista Coordinador' : 'Cargar Actividades del Evento'}</span>
             </button>
           )}
+
+          <button
+            onClick={() => {
+              const anyBots = teams.slice(1).some(t => t.isBot);
+              setTeams(prev =>
+                prev.map((tm, idx) =>
+                  idx === 0
+                    ? tm
+                    : {
+                        ...tm,
+                        isBot: !anyBots,
+                        name: !anyBots
+                          ? `${tm.name.replace(' (PC)', '')} (PC)`
+                          : tm.name.replace(' (PC)', '')
+                      }
+                )
+              );
+            }}
+            className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1.5 transition ${
+              teams.slice(1).some(t => t.isBot)
+                ? 'bg-amber-500/20 text-amber-300 border-amber-400/50'
+                : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            <span>{teams.slice(1).some(t => t.isBot) ? '🤖 vs Computadora Activo' : '👥 Modo Multijugador'}</span>
+          </button>
 
           <button
             onClick={() => setEditingTeams(!editingTeams)}
@@ -688,10 +745,27 @@ export default function OcaScoutGame({
       {editingTeams && (
         <div className="bg-slate-900 border-2 border-cyan-500/40 rounded-2xl p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {teams.map((t, idx) => (
-            <div key={t.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-              <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">
-                Ficha {t.emoji} Patrulla #{idx + 1}
-              </label>
+            <div key={t.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black uppercase text-slate-400">
+                  Ficha {t.emoji} Patrulla #{idx + 1}
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTeams(prev =>
+                      prev.map((tm, i) => (i === idx ? { ...tm, isBot: !tm.isBot } : tm))
+                    )
+                  }
+                  className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                    t.isBot
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                  }`}
+                >
+                  {t.isBot ? '🤖 Computadora' : '👤 Humano'}
+                </button>
+              </div>
               <input
                 type="text"
                 value={t.name}

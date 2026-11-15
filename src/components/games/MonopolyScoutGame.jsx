@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Dices,
@@ -8,7 +8,8 @@ import {
   HelpCircle,
   Users,
   Smartphone,
-  LayoutGrid
+  LayoutGrid,
+  Bot
 } from 'lucide-react';
 import ScoutCharacter from '../characters/ScoutCharacter';
 import { sound } from '../../utils/audio';
@@ -113,10 +114,10 @@ const SCOUT_MINI_QUIZZES = [
 ];
 
 const INITIAL_PLAYERS = [
-  { id: 0, name: 'Patrulla Águilas', emoji: '🦅', color: '#10B981', money: 1500, pos: 0, camps: 0 },
-  { id: 1, name: 'Patrulla Lobos', emoji: '🐺', color: '#0EA5E9', money: 1500, pos: 0, camps: 0 },
-  { id: 2, name: 'Patrulla Castores', emoji: '🦫', color: '#F59E0B', money: 1500, pos: 0, camps: 0 },
-  { id: 3, name: 'Patrulla Zorros', emoji: '🦊', color: '#EC4899', money: 1500, pos: 0, camps: 0 }
+  { id: 0, name: 'Patrulla Águilas (Tú)', emoji: '🦅', color: '#10B981', money: 1500, pos: 0, camps: 0, isBot: false },
+  { id: 1, name: 'Patrulla Lobos (PC)', emoji: '🐺', color: '#0EA5E9', money: 1500, pos: 0, camps: 0, isBot: true },
+  { id: 2, name: 'Patrulla Castores (PC)', emoji: '🦫', color: '#F59E0B', money: 1500, pos: 0, camps: 0, isBot: true },
+  { id: 3, name: 'Patrulla Zorros (PC)', emoji: '🦊', color: '#EC4899', money: 1500, pos: 0, camps: 0, isBot: true }
 ];
 
 function DiceFace({ value, isRolling }) {
@@ -409,6 +410,32 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
     propOwner.level < 5 &&
     currentPlayer.money >= Math.round(currentTile.price * 0.5);
 
+  // Automatic AI Turn Execution when currentPlayer.isBot is true
+  useEffect(() => {
+    if (!currentPlayer?.isBot || isRolling || isMoving || turnPhase === 'gameover') return;
+
+    if (turnPhase === 'roll') {
+      const t = setTimeout(() => {
+        handleRollDice();
+      }, 950);
+      return () => clearTimeout(t);
+    }
+
+    if (turnPhase === 'action') {
+      const t = setTimeout(() => {
+        if (canBuy && currentPlayer.money >= currentTile.price + 100) {
+          handleBuyProperty();
+        } else if (canUpgrade && currentPlayer.money >= Math.round(currentTile.price * 0.5) + 150) {
+          handleUpgradeProperty();
+        }
+        setTimeout(() => {
+          handleEndTurn();
+        }, 850);
+      }, 1050);
+      return () => clearTimeout(t);
+    }
+  }, [turnIdx, turnPhase, isRolling, isMoving, currentPlayer?.isBot, canBuy, canUpgrade]);
+
   const mobileFilteredTiles =
     activeSideTab === 'todas'
       ? BOARD_TILES
@@ -648,6 +675,32 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
 
         <div className="flex flex-wrap items-center justify-center gap-2">
           <button
+            onClick={() => {
+              const anyBots = players.slice(1).some(p => p.isBot);
+              setPlayers(prev =>
+                prev.map((p, idx) =>
+                  idx === 0
+                    ? p
+                    : {
+                        ...p,
+                        isBot: !anyBots,
+                        name: !anyBots
+                          ? `${p.name.replace(' (PC)', '')} (PC)`
+                          : p.name.replace(' (PC)', '')
+                      }
+                )
+              );
+            }}
+            className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1.5 transition ${
+              players.slice(1).some(p => p.isBot)
+                ? 'bg-amber-500/20 text-amber-300 border-amber-400/50'
+                : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            <span>{players.slice(1).some(p => p.isBot) ? '🤖 vs Computadora Activo' : '👥 Modo Multijugador'}</span>
+          </button>
+          <button
             onClick={() => setEditingPatrols(!editingPatrols)}
             className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 font-bold text-xs flex items-center gap-1.5"
           >
@@ -675,10 +728,27 @@ export default function MonopolyScoutGame({ onBack, activeContext = {} }) {
       {editingPatrols && (
         <div className="bg-slate-900/95 border-2 border-cyan-500/40 rounded-2xl p-3 sm:p-4 mb-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           {players.map((p, idx) => (
-            <div key={p.id} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-              <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">
-                Ficha {p.emoji} Patrulla #{idx + 1}
-              </label>
+            <div key={p.id} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black uppercase text-slate-400">
+                  Ficha {p.emoji} Patrulla #{idx + 1}
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPlayers(prev =>
+                      prev.map((pl, i) => (i === idx ? { ...pl, isBot: !pl.isBot } : pl))
+                    )
+                  }
+                  className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                    p.isBot
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                  }`}
+                >
+                  {p.isBot ? '🤖 Computadora' : '👤 Humano'}
+                </button>
+              </div>
               <input
                 type="text"
                 value={p.name}
