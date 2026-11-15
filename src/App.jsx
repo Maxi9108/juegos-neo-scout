@@ -9,6 +9,7 @@ import OcaScoutGame from './components/games/OcaScoutGame';
 import VidaScoutGame from './components/games/VidaScoutGame';
 import PictionaryScoutGame from './components/games/PictionaryScoutGame';
 import TuttiFruttiScoutGame from './components/games/TuttiFruttiScoutGame';
+import BatallaNavalScoutGame from './components/games/BatallaNavalScoutGame';
 import InstantWheelModal from './components/games/InstantWheelModal';
 import ScoutSectionsHub from './components/sections/ScoutSectionsHub';
 import ScoreboardPanel from './components/ScoreboardPanel';
@@ -63,7 +64,7 @@ function MainApp() {
 
       if (juegoParam) {
         if (juegoParam === 'preguntados') setActiveTab('play');
-        else if (['monopoly', 'loteria', 'oca', 'vida_scout', 'pictionary', 'tutti_frutti'].includes(juegoParam)) {
+        else if (['monopoly', 'loteria', 'oca', 'vida_scout', 'pictionary', 'tutti_frutti', 'batalla_naval'].includes(juegoParam)) {
           setActiveTab(juegoParam);
         }
       }
@@ -180,6 +181,13 @@ function MainApp() {
           />
         )}
 
+        {activeTab === 'batalla_naval' && (
+          <BatallaNavalScoutGame
+            onBack={() => setActiveTab('portal')}
+            activeContext={activeContext}
+          />
+        )}
+
         {activeTab === 'instant_wheel' && (
           <InstantWheelModal
             onBack={() => setActiveTab('portal')}
@@ -229,7 +237,7 @@ function MainApp() {
           <span>•</span>
           <span>"Siempre Listos para Servir"</span>
           <span>•</span>
-          <span className="text-emerald-400 font-semibold">7 Juegos Activos • Tableros de Mesa • 24/7</span>
+          <span className="text-emerald-400 font-semibold">8 Juegos Activos • Tableros de Mesa • 24/7</span>
         </div>
       </footer>
     </div>

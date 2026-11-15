@@ -95,15 +95,28 @@ export default function GamePortal({
     {
       id: 'pictionary',
       title: 'Pictionary Scout 3D',
-      badge: '¡PIZARRA ACTIVA!',
+      badge: '¡PIZARRA EN VIVO POR LINK!',
       badgeColor: 'bg-gradient-to-r from-purple-500 to-violet-400 text-slate-950 font-black shadow-md',
       categoryChar: 'pictionary',
-      description: 'Dibuja en la pizarra táctil nudos, signos de pista y herramientas junto a Pinto el Camaleón 3D mientras tu patrulla adivina contra el reloj.',
-      players: 'Por Equipos • Pizarra Interactiva',
+      description: 'Dibuja en la pizarra táctil nudos, signos de pista y herramientas junto a Pinto el Camaleón 3D mientras todos los conectados al link ven tus trazos en vivo.',
+      players: 'Por Equipos • Link en Tiempo Real',
       pointsReward: 'Puntos por Rapidez',
       gradient: 'from-[#180c2e] via-[#09152b] to-[#1a1033]',
       borderColor: 'border-purple-500/50 hover:border-purple-300',
       buttonText: '¡JUGAR PICTIONARY!'
+    },
+    {
+      id: 'batalla_naval',
+      title: 'Batalla Naval Scout 3D',
+      badge: '¡NUEVO • TODOS CONTRA TODOS!',
+      badgeColor: 'bg-gradient-to-r from-cyan-400 via-sky-400 to-amber-400 text-slate-950 font-black shadow-md',
+      categoryChar: 'batalla_naval',
+      description: 'Suma a varios usuarios o patrullas: cada uno ubica su flota en el mapa y cada vez que se indica una posición (ej. C-4), ¡pierden todos los demás usuarios que tengan algo en esa coordenada!',
+      players: 'Múltiples Usuarios • Radar Simultáneo',
+      pointsReward: '+500 pts + Impactos',
+      gradient: 'from-[#061c30] via-[#09152b] to-[#0a263b]',
+      borderColor: 'border-cyan-400/70 hover:border-amber-300',
+      buttonText: '¡JUGAR BATALLA NAVAL!'
     }
   ];
 
@@ -135,7 +148,7 @@ export default function GamePortal({
                 Juegos Neo-Scout 24/7
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl leading-relaxed">
-                7 Juegos interactivos con tableros de mesa reales y personajes 3D (Preguntados, Monopoly de Mesa, Oca Serpenteante, Tutti Frutti con ¡Basta Automático!, Lotería, Vida Scout y Pictionary), Secciones por Grupo y Rama, y Rotación Semanal.
+                8 Juegos interactivos con tableros de mesa reales y personajes 3D (Preguntados, Monopoly de Mesa, Oca Serpenteante, Tutti Frutti, Batalla Naval Todos contra Todos, Lotería, Vida Scout y Pictionary en Vivo), Secciones por Grupo y Rama, y Rotación Semanal.
               </p>
 
               {/* Quick Feature Pills */}

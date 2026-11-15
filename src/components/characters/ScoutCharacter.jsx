@@ -16,6 +16,7 @@ import React from 'react';
  * - pictionary: "Pinto el Camaleón Artista 3D" 🦎🎨 (Pictionary Scout)
  * - ruleta_momento: "Chispa la Ardilla Malabarista 3D" 🐿️🎡 (Ruleta del Momento)
  * - tutti_frutti: "Tito el Mono Escriba 3D" 🐒✏️ (Tutti Frutti / ¡Basta para Todos!)
+ * - batalla_naval: "Capitán Nutria 3D" 🦦⚓ (Batalla Naval Scout)
  */
 export default function ScoutCharacter({
   categoryId = 'corona',
@@ -53,7 +54,8 @@ export default function ScoutCharacter({
     vida_scout: { name: 'Kimba el León 3D', title: 'Guía de Progresión Scout', badgeColor: '#F97316', glow: 'rgba(249,115,22,0.5)' },
     pictionary: { name: 'Pinto el Camaleón 3D', title: 'Artista de la Patrulla', badgeColor: '#8B5CF6', glow: 'rgba(139,92,246,0.5)' },
     ruleta_momento: { name: 'Chispa la Ardilla 3D', title: 'Maestra de Dinámicas', badgeColor: '#06B6D4', glow: 'rgba(6,182,212,0.5)' },
-    tutti_frutti: { name: 'Tito el Mono Escriba 3D', title: 'Juez del ¡Basta para Todos!', badgeColor: '#F43F5E', glow: 'rgba(244,63,94,0.5)' }
+    tutti_frutti: { name: 'Tito el Mono Escriba 3D', title: 'Juez del ¡Basta para Todos!', badgeColor: '#F43F5E', glow: 'rgba(244,63,94,0.5)' },
+    batalla_naval: { name: 'Capitán Nutria 3D', title: 'Almirante de la Flota Scout', badgeColor: '#0EA5E9', glow: 'rgba(14,165,233,0.55)' }
   }[categoryId] || { name: 'Willy Scout 3D', title: 'Anfitrión de la Ruleta', badgeColor: '#EAB308', glow: 'rgba(234,179,8,0.4)' };
 
   const isHappy = reaction === 'happy' || reaction === 'celebrate' || reaction === 'excited';
@@ -477,6 +479,42 @@ export default function ScoutCharacter({
                 <polygon points="89,102 93,102 91,106" fill="#0F172A" />
                 <rect x="86" y="62" width="10" height="6" rx="2" fill="#F43F5E" />
               </g>
+            </g>
+          </svg>
+        );
+
+      case 'batalla_naval': // Capitán Nutria 3D (Batalla Naval Scout)
+        return (
+          <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+            {renderSharedDefs()}
+            <g filter="url(#3dShadow)">
+              {/* Otter Round Ears */}
+              <circle cx="29" cy="44" r="9" fill="url(#furBrown3D)" />
+              <circle cx="29" cy="44" r="5" fill="url(#bellyCream3D)" />
+              <circle cx="91" cy="44" r="9" fill="url(#furBrown3D)" />
+              <circle cx="91" cy="44" r="5" fill="url(#bellyCream3D)" />
+              {/* Otter Head & Body */}
+              <ellipse cx="60" cy="68" rx="34" ry="30" fill="url(#furBrown3D)" />
+              <ellipse cx="60" cy="73" rx="24" ry="18" fill="url(#bellyCream3D)" />
+              {/* Naval Captain Cap */}
+              <path d="M26 36 C32 16, 88 16, 94 36 Z" fill="url(#white3D)" stroke="#0284C7" strokeWidth="2" />
+              <rect x="28" y="33" width="64" height="7" rx="3" fill="#0F172A" stroke="url(#gold3D)" strokeWidth="1.5" />
+              <circle cx="60" cy="26" r="5.5" fill="url(#gold3D)" />
+              {render3DEyes(48, 72, 54)}
+              {/* Whiskers & Nose */}
+              <ellipse cx="60" cy="64" rx="6" ry="4" fill="#0F172A" />
+              <line x1="34" y1="64" x2="46" y2="66" stroke="#451A03" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="34" y1="69" x2="46" y2="69" stroke="#451A03" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="86" y1="64" x2="74" y2="66" stroke="#451A03" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="86" y1="69" x2="74" y2="69" stroke="#451A03" strokeWidth="1.8" strokeLinecap="round" />
+              {/* Naval Scout Neckerchief */}
+              <path d="M40 86 L60 106 L80 86 Z" fill="url(#blue3D)" />
+              <circle cx="60" cy="89" r="4.5" fill="url(#gold3D)" />
+              {/* 3D Radar / Anchor Emblem */}
+              <circle cx="90" cy="88" r="14" fill="#0F172A" stroke="url(#gold3D)" strokeWidth="2.5" />
+              <circle cx="90" cy="88" r="9" fill="none" stroke="#10B981" strokeWidth="1.2" strokeDasharray="2,2" />
+              <line x1="90" y1="88" x2="99" y2="81" stroke="#34D399" strokeWidth="2.2" strokeLinecap="round" />
+              <circle cx="95" cy="84" r="2.2" fill="#EF4444" />
             </g>
           </svg>
         );

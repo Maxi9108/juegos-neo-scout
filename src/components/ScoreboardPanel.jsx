@@ -182,6 +182,7 @@ export default function ScoreboardPanel({ activeContext = {} }) {
             <option value="Juego de la Oca Scout">🪿 Oca Scout</option>
             <option value="Pictionary Scout">🎨 Pictionary Scout</option>
             <option value="Tutti Frutti Scout">🐒 Tutti Frutti Scout</option>
+            <option value="Batalla Naval Scout">⚓ Batalla Naval Scout</option>
             <option value="Juego de la Vida Scout">🦁 Juego de la Vida Scout</option>
             <option value="Lotería Familiar">🎱 Lotería Familiar</option>
           </select>
